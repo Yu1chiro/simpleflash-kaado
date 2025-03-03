@@ -36,6 +36,7 @@ const firebaseConfig = {
   const cancelCardBtn = document.getElementById('cancelCardBtn');
   const saveCardBtn = document.getElementById('saveCardBtn');
   const playDeckBtn = document.getElementById('playDeckBtn');
+  const playQuiz = document.getElementById('playquiz');
   const studyBtnNav = document.getElementById('studyBtnNav');
   const cardMemoInput = document.getElementById('cardMemo');
   
@@ -95,6 +96,9 @@ cardBack.addEventListener('keydown', function(event) {
   // Study button in navigation
   studyBtnNav.addEventListener('click', () => {
     window.location.href = `/flashcard/${deckId}`;
+  });
+  playQuiz.addEventListener('click', () => {
+    window.location.href = `/quiz/${deckId}`;
   });
   
   // New card button

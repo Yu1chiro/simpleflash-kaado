@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Flashcards</title>
+    <!-- Tailwind CSS CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <!-- Animate CSS untuk animasi -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <!-- Navbar -->
+    <nav class="bg-white shadow-md">
+        <div class="container mx-auto px-6 py-3 flex justify-between items-center">
+            <div class="flex items-center">
+                <button id="backBtn" class="mr-4 text-gray-700 hover:text-blue-600 focus:outline-none">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+                </button>
+                <h1 class="text-xl font-bold text-gray-800">Quiz Flashcards</h1>
+            </div>
+            <div class="flex space-x-4">
+                <button id="profileBtnNav" class="text-gray-700 hover:text-blue-600 focus:outline-none">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container mx-auto px-6 py-8">
+        <!-- Deck Info -->
+        <div class="bg-gradient-to-r from-purple-500 to-blue-600 rounded-xl shadow-md p-6 mb-8">
+            <h1 id="deckTitle" class="text-xl font-bold text-white mb-2">Loading Deck...</h1>
+            <p id="deckDescription" class="text-white mb-4">Loading description...</p>
+            <div class="flex justify-between items-center">
+                <div>
+                    <span class="text-sm text-white font-semibold">Jumlah Kartu:</span>
+                    <span id="cardCount" class="ml-1 font-semibold text-white">0</span>
+                </div>
+                <div>
+                    <span class="text-sm text-white font-semibold">Status Quiz:</span>
+                    <span id="quizStatus" class="ml-1 font-semibold text-white">.....</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quiz Info Card -->
+        <div id="quizInfoCard" class="bg-white rounded-xl shadow-md p-6 mb-8 animate__animated animate__fadeIn">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">Petunjuk Quiz</h2>
+            <p class="text-gray-600 mb-4">
+              Have fun aja kata gw mah:v
+            </p>
+            <div class="flex justify-center">
+                <button id="startQuizBtn" class="bg-gradient-to-r from-blue-500 to-green-600 text-white font-medium py-2 px-6 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition">
+                    Start Quiz
+                </button>
+            </div>
+        </div>
+
+        <!-- Quiz Container -->
+        <div id="quizContainer" class="hidden animate__animated">
+            <!-- Progress Bar -->
+            <div class="mb-6">
+                <div class="flex justify-between text-sm text-gray-600 mb-1">
+                    <span>Progress</span>
+                    <span id="progressText">0/0</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2.5">
+                    <div id="progressBar" class="bg-gradient-to-r from-blue-500 to-green-600 h-2.5 rounded-full" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- Quiz Card -->
+            <div id="questionCard" class="bg-white rounded-xl shadow-md overflow-hidden mb-8">
+                <div class="p-6">
+                    <h3 id="questionNumber" class="text-sm font-semibold text-gray-500 mb-2">Pertanyaan 1</h3>
+                    <h2 id="questionText" class="text-xl font-bold text-gray-800 mb-6">Loading question...</h2>
+                    
+                    <!-- Options -->
+                    <div id="optionsContainer" class="grid grid-cols-1 gap-3 mb-4">
+                        <!-- Options will be dynamically generated here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation Buttons -->
+            <div class="flex justify-between">
+                <button id="prevQuestionBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 px-6 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-50 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                    Sebelumnya
+                </button>
+                <button id="nextQuestionBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                    Selanjutnya
+                </button>
+            </div>
+        </div>
+
+        <!-- Results Container -->
+        <div id="resultsContainer" class="hidden bg-white rounded-xl shadow-md p-6 mb-8 animate__animated">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">Hasil Quiz</h2>
+            
+            <!-- Score Summary -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div class="bg-blue-50 p-4 rounded-lg text-center">
+                    <p class="text-gray-600 mb-1">Total Pertanyaan</p>
+                    <p id="totalQuestions" class="text-2xl font-bold text-gray-800">0</p>
+                </div>
+                <div class="bg-green-50 p-4 rounded-lg text-center">
+                    <p class="text-gray-600 mb-1">Jawaban Benar</p>
+                    <p id="correctAnswers" class="text-2xl font-bold text-green-600">0</p>
+                </div>
+                <div class="bg-red-50 p-4 rounded-lg text-center">
+                    <p class="text-gray-600 mb-1">Jawaban Salah</p>
+                    <p id="wrongAnswers" class="text-2xl font-bold text-red-600">0</p>
+                </div>
+            </div>
+            
+            <!-- Score Percentage -->
+            <div class="mb-6">
+                <div class="flex justify-between text-sm text-gray-600 mb-1">
+                    <span>Skor</span>
+                    <span id="scorePercentage">0%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-4">
+                    <div id="scoreBar" class="bg-green-600 h-4 rounded-full" style="width: 0%"></div>
+                </div>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="flex justify-center space-x-4">
+                <button id="restartQuizBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition">
+                    Mulai Ulang Quiz
+                </button>
+                <button id="backToDeckBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 px-6 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-50 transition">
+                    Kembali ke Deck
+                </button>
+            </div>
+        </div>
+    </div>
+
+   <script src="/js/quiz.js"></script>
+</body>
+</html>
