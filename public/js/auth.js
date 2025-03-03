@@ -26,6 +26,10 @@ const firebaseConfig = {
   
   // Login with Google
   googleLoginBtn.addEventListener('click', () => {
+    const audio = new Audio('/img/button.mp3'); // Ganti dengan nama file audio kamu
+    audio.volume = 0.5; // Set volume ke 50%
+    audio.play();
+    
     loadingElement.classList.remove('hidden');
     
     auth.signInWithPopup(googleProvider)

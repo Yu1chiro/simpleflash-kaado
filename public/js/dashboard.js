@@ -28,6 +28,7 @@ const deckTitleInput = document.getElementById('deckTitle');
 const deckDescriptionInput = document.getElementById('deckDescription');
 const deckListElement = document.getElementById('deckList');
 const studyIcon = document.getElementById('studyBtn');
+const profileBtn = document.getElementById('profileBtn');
 
 // Variabel untuk melacak apakah data sudah di-load
 let decksLoaded = false;
@@ -51,6 +52,9 @@ auth.onAuthStateChanged((user) => {
 logoutBtn.addEventListener('click', () => {
   auth.signOut()
     .then(() => {
+        const audio = new Audio('/img/primary.wav'); // Ganti dengan nama file audio kamu
+audio.volume = 0.5; // Set volume ke 50%
+audio.play();
       window.location.href = '/';
     })
     .catch((error) => {
@@ -60,18 +64,30 @@ logoutBtn.addEventListener('click', () => {
 
 // Show new deck modal
 newDeckBtn.addEventListener('click', () => {
+    const audio = new Audio('/img/primary.wav'); // Ganti dengan nama file audio kamu
+audio.volume = 0.5; // Set volume ke 50%
+audio.play();
+
   newDeckModal.classList.remove('hidden');
   deckTitleInput.focus();
 });
 
 // Hide new deck modal
 cancelDeckBtn.addEventListener('click', () => {
+    const audio = new Audio('/img/primary.wav'); // Ganti dengan nama file audio kamu
+audio.volume = 0.5; // Set volume ke 50%
+audio.play();
+
   newDeckModal.classList.add('hidden');
   clearDeckForm();
 });
 
 // Close modal when clicking outside
 newDeckModal.addEventListener('click', (e) => {
+    const audio = new Audio('/img/primary.wav'); // Ganti dengan nama file audio kamu
+audio.volume = 0.5; // Set volume ke 50%
+audio.play();
+
   if (e.target === newDeckModal) {
     newDeckModal.classList.add('hidden');
     clearDeckForm();
@@ -81,7 +97,10 @@ newDeckModal.addEventListener('click', (e) => {
 // Save new deck
 saveDeckBtn.addEventListener('click', () => {
   const user = auth.currentUser;
-  
+  const audio = new Audio('/img/primary.wav'); // Ganti dengan nama file audio kamu
+audio.volume = 0.5; // Set volume ke 50%
+audio.play();
+
   if (!user) return;
   
   const title = deckTitleInput.value.trim();
@@ -189,6 +208,10 @@ function hideConfirmModal() {
 }
 
 function deleteDeck(deckId) {
+    const audio = new Audio('/img/primary.wav'); // Ganti dengan nama file audio kamu
+audio.volume = 0.5; // Set volume ke 50%
+audio.play();
+
     const user = auth.currentUser;
 
     if (!user) {
@@ -200,6 +223,10 @@ function deleteDeck(deckId) {
 }
 
 function deleteDeckConfirmed(deckId) {
+    const audio = new Audio('/img/primary.wav'); // Ganti dengan nama file audio kamu
+audio.volume = 0.5; // Set volume ke 50%
+audio.play();
+
     const user = auth.currentUser;
 
     if (!user) {
@@ -277,7 +304,13 @@ function addDeckToList(deck) {
   deckElement.querySelector('.deck-main').addEventListener('click', () => {
     window.location.href = `/deck/${deck.id}`;
   });
-
+  
+  const profileBtn = document.getElementById('profileBtn');
+  profileBtn.addEventListener('click', () => {
+    window.location.href = '/user-info.html';
+  });
+  
+ 
   // Add event listener for edit button
   const editButton = deckElement.querySelector('.edit-deck-btn');
   editButton.addEventListener('click', function(e) {
@@ -288,6 +321,10 @@ function addDeckToList(deck) {
   // Add event listener for play button
   const playButton = deckElement.querySelector('.play-deck-btn');
   playButton.addEventListener('click', function(e) {
+    const audio = new Audio('/img/primary.wav'); // Ganti dengan nama file audio kamu
+audio.volume = 0.5; // Set volume ke 50%
+audio.play();
+
     e.stopPropagation();
     window.location.href = `/flashcard/${this.getAttribute('data-id')}`;
   });
@@ -295,6 +332,10 @@ function addDeckToList(deck) {
   // Add event listener for delete button
   const deleteButton = deckElement.querySelector('.delete-deck-btn');
   deleteButton.addEventListener('click', function(e) {
+    const audio = new Audio('/img/primary.wav'); // Ganti dengan nama file audio kamu
+audio.volume = 0.5; // Set volume ke 50%
+audio.play();
+
     e.stopPropagation();
     e.preventDefault();
     const deckId = this.getAttribute('data-id');

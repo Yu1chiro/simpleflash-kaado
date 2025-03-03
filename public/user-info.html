@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Info Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Firebase App -->
+<script src="https://www.gstatic.com/firebasejs/10.6.0/firebase-app-compat.js"></script>
+<!-- Firebase Auth -->
+<script src="https://www.gstatic.com/firebasejs/10.6.0/firebase-auth-compat.js"></script>
+<!-- Firebase Realtime Database -->
+<script src="https://www.gstatic.com/firebasejs/10.6.0/firebase-database-compat.js"></script>
+
+  
+</head>
+<body class="bg-gradient-to-r from-purple-500 to-green-700">
+    <div class="min-h-screen flex items-center justify-center">
+        <div class="max-w-md w-full p-6 bg-white rounded-2xl shadow-lg">
+            <div class="flex flex-col items-center">
+                <img id="user-photo" class="w-32 h-32 rounded-full border-4 border-blue-500" alt="User Photo">
+                <h2 id="user-name" class="mt-4 text-2xl font-semibold text-gray-800">User Name</h2>
+                <p id="deck-count" class="mt-2 mb-3 text-gray-500">Decks created: 0</p>
+                <button id="out-btn" class="px-2 py-2 bg-gradient-to-r from-red-500 to-red-700 rounded-lg text-lg text-white font-semibold">Logout</button>
+            </div>
+            <h3 class="mt-6 text-xl font-bold text-gray-700">Your Decks</h3>
+            <div id="deck-container" class="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <p class="text-gray-500">Loading decks...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyDnotXzrFZPyZSPfy7nVcFTq72Kr2mCn4c",
+            authDomain: "flashcards-project-73131.firebaseapp.com",
+            projectId: "flashcards-project-73131",
+            storageBucket: "flashcards-project-73131.firebasestorage.app",
+            messagingSenderId: "326762118238",
+            appId: "1:326762118238:web:afd8037256085c35e108cf",
+            measurementId: "G-2CMLSN7KPW"
+        };
+    
+        // Initialize Firebase (cukup satu kali)
+        firebase.initializeApp(firebaseConfig);
+    
+        const auth = firebase.auth();
+        const database = firebase.database();
+    
+        // Cek status login
+      const userNameElement = document.getElementById('user-name');
+      const userPhotoElement = document.getElementById('user-photo');
+      const logoutBtn = document.getElementById('out-btn');
+    auth.onAuthStateChanged((user) => {
+    if (user) {
+        // User is signed in
+        userNameElement.textContent = user.displayName || 'User';
+        userPhotoElement.src = user.photoURL || 'https://api.dicebear.com/6.x/initials/svg?seed=' + user.displayName;
+        
+        // Load user's decks
+        loadDecks(user.uid);
+    } else {
+        // User is signed out, redirect to login
+        window.location.href = '/';
+    }
+    });
+// Logout function
+logoutBtn.addEventListener('click', () => {
+  auth.signOut()
+    .then(() => {
+        const audio = new Audio('/img/primary.wav'); // Ganti dengan nama file audio kamu
+audio.volume = 0.5; // Set volume ke 50%
+audio.play();
+      window.location.href = '/';
+    })
+    .catch((error) => {
+      console.error('Error signing out:', error);
+    });
+});
+function loadDecks(uid) {
+    database.ref(`users/${uid}/decks`).once('value', (snapshot) => {
+        if (snapshot.exists()) {
+            const decks = snapshot.val();
+            const deckContainer = document.getElementById('deck-container');
+            deckContainer.innerHTML = ''; // Bersihkan kontainer dulu
+
+            Object.keys(decks).forEach((deckId) => {
+                const deck = decks[deckId];
+
+                // Pastikan title ada
+                const title = deck.title || 'Untitled Deck';
+                const cardCount = deck.cardCount || 0;
+                
+               // Buat elemen deck
+    const deckCard = document.createElement('div');
+    deckCard.className = 'k p-4 bg-gradient-to-r from-blue-500 to-purple-600 shadow-md rounded-lg hover:shadow-xl transition cursor-pointer';
+    deckCard.innerHTML = `
+        <h3 class="text-xl font-bold text-white">${title}</h3>
+        <p class="text-white mt-2">Jumlah kartu: ${cardCount}</p>
+    `;
+
+    // Tambahkan event listener untuk redirect
+    deckCard.addEventListener('click', () => {
+        window.location.href = `/deck/${deck.id}`;
+    });
+
+    // Masukkan elemen ke container
+    deckContainer.appendChild(deckCard);
+            });
+            
+        } else {
+            console.log("No decks found.");
+            deckContainer.innerHTML = '<p class="text-gray-500">Belum ada deck yang dibuat.</p>';
+        }
+    });
+    
+}
+
+    </script>
+    
+</body>
+</html>
+

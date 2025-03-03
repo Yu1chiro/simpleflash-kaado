@@ -63,11 +63,19 @@ cardFront.addEventListener('keydown', function(event) {
 });
   // Back button
   backBtn.addEventListener('click', () => {
+    const audio = new Audio('/img/primary.wav'); // Ganti dengan nama file audio kamu
+    audio.volume = 0.5; // Set volume ke 50%
+    audio.play();
+    
     window.location.href = '/dashboard';
   });
   
   // Play deck button
   playDeckBtn.addEventListener('click', () => {
+    const audio = new Audio('/img/primary.wav'); // Ganti dengan nama file audio kamu
+    audio.volume = 0.5; // Set volume ke 50%
+    audio.play();
+    
     window.location.href = `/flashcard/${deckId}`;
   });
   
@@ -78,6 +86,10 @@ cardFront.addEventListener('keydown', function(event) {
   
   // New card button
   newCardBtn.addEventListener('click', () => {
+    const audio = new Audio('/img/primary.wav'); // Ganti dengan nama file audio kamu
+    audio.volume = 0.5; // Set volume ke 50%
+    audio.play();
+    
     openCardModal();
   });
   
@@ -88,11 +100,19 @@ cardFront.addEventListener('keydown', function(event) {
   
   // Cancel card button
   cancelCardBtn.addEventListener('click', () => {
+    const audio = new Audio('/img/primary.wav'); // Ganti dengan nama file audio kamu
+    audio.volume = 0.5; // Set volume ke 50%
+    audio.play();
+    
     closeCardModal();
   });
   
   // Close modal when clicking outside
   cardModal.addEventListener('click', (e) => {
+    const audio = new Audio('/img/primary.wav'); // Ganti dengan nama file audio kamu
+    audio.volume = 0.5; // Set volume ke 50%
+    audio.play();
+    
     if (e.target === cardModal) {
       closeCardModal();
     }
@@ -100,6 +120,10 @@ cardFront.addEventListener('keydown', function(event) {
   
   // Save card button
   saveCardBtn.addEventListener('click', () => {
+    const audio = new Audio('/img/primary.wav'); // Ganti dengan nama file audio kamu
+    audio.volume = 0.5; // Set volume ke 50%
+    audio.play();
+    
     const user = auth.currentUser;
     
     if (!user) return;
@@ -225,15 +249,28 @@ cardFront.addEventListener('keydown', function(event) {
     
     // Add event listeners to the buttons
     cardElement.querySelector('.edit-card-btn').addEventListener('click', () => {
+        const audio = new Audio('/img/primary.wav'); // Ganti dengan nama file audio kamu
+        audio.volume = 0.5; // Set volume ke 50%
+        audio.play();
+        
       openCardModal(card);
     });
     
     cardElement.querySelector('.delete-card-btn').addEventListener('click', () => {
+        const audio = new Audio('/img/primary.wav'); // Ganti dengan nama file audio kamu
+        audio.volume = 0.5; // Set volume ke 50%
+        audio.play();
+        
       if (confirm('Are you sure you want to delete this card?')) {
         deleteCard(auth.currentUser.uid, deckId, card.id);
       }
     });
   }
+  
+  const profileBtn = document.getElementById('profileBtnNav');
+  profileBtn.addEventListener('click', () => {
+    window.location.href = '/user-info.html';
+  });
   
   // Open card modal
   function openCardModal(card = null) {
