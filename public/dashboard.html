@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.6.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.6.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.6.0/firebase-database-compat.js"></script>
+  <!-- Animation library -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+</head>
+<body class="bg-gradient-to-tl from-indigo-100 via-purple-100 to-pink-100 min-h-screen pb-20">
+  <!-- Header -->
+  <header class="bg-white shadow-md p-4">
+    <div class="flex justify-between items-center max-w-5xl mx-auto">
+      <h1 class="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">Simple Flashcards</h1>
+      <div class="flex items-center space-x-2">
+        <img id="userPhoto" src="" alt="User" class="w-8 h-8 rounded-full border-2 border-purple-400">
+        <button id="logoutBtn" class="px-1 py-1 text-white hover:bg-red-800 rounded-lg bg-red-600  text-sm font-semibold">Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="max-w-5xl mx-auto p-4">
+    <div class="mb-6">
+      <h2 class="text-xl font-semibold text-gray-800 mb-2">Welcome, <span id="userName">User</span>!</h2>
+      <p class="text-gray-600">Manage your flashcard decks below.</p>
+    </div>
+
+    <!-- Deck List -->
+    <div class="mb-4 flex justify-between items-center">
+      <h3 class="text-lg font-medium text-gray-800">Your Decks</h3>
+      <button id="newDeckBtn" class="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-4 py-2 rounded-lg shadow-md hover:from-blue-600 hover:to-purple-700 transition">
+        New Deck
+      </button>
+    </div>
+    <!-- Confirmation Modal -->
+<div id="confirmModal" class="fixed inset-0 bg-gray-800 bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white p-6 rounded-lg shadow-lg max-w-sm">
+        <h2 class="text-lg font-bold mb-4">Konfirmasi Penghapusan</h2>
+        <p>Apakah Anda yakin ingin menghapus deck ini? Tindakan ini tidak dapat dibatalkan.</p>
+        <div class="mt-6 flex justify-end">
+            <button onclick="hideConfirmModal()" class="mr-2 bg-gray-300 hover:bg-gray-400 text-gray-800 py-2 px-4 rounded">
+                Batal
+            </button>
+            <button id="confirmDeleteBtn" class="bg-red-500 hover:bg-red-700 text-white py-2 px-4 rounded">
+                Hapus
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Success Alert -->
+<div id="successAlert" class="fixed top-5 right-5 max-w-xs w-full bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg shadow-lg hidden z-50" role="alert">
+    <div class="flex items-start">
+        <div class="mr-3">
+            <svg class="fill-current h-6 w-6 text-green-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                <title>Success</title>
+                <path d="M9 12.172l-3.536-3.536a1 1 0 00-1.414 1.414l4.95 4.95a1 1 0 001.414 0l8.485-8.485a1 1 0 10-1.414-1.414L9 12.172z"/>
+            </svg>
+        </div>
+        <div>
+            <strong class="font-bold">Berhasil!</strong>
+            <span class="block">Data deck berhasil dihapus.</span>
+        </div>
+        <button class="ml-auto pl-3" onclick="hideAlert()">
+            <svg class="fill-current h-6 w-6 text-green-500" role="button" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                <title>Tutup</title>
+                <path d="M14.348 5.652a1 1 0 10-1.414-1.414L10 7.172 7.066 4.238a1 1 0 10-1.414 1.414L8.586 8.586l2.934 2.934a1 1 0 001.414-1.414L11.414 8.586l2.934-2.934z"/>
+            </svg>
+        </button>
+    </div>
+</div>
+
+<!-- Error Alert -->
+<div id="errorAlert" class="fixed top-5 right-5 max-w-xs w-full bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg shadow-lg hidden z-50" role="alert">
+    <div class="flex items-start">
+        <div class="mr-3">
+            <svg class="fill-current h-6 w-6 text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                <title>Error</title>
+                <path d="M10 9l-3-3m0 6l3-3m0 0l3-3m-3 3l3 3m-3-3H7m3 0h3m-3 0v3m0-3V7"></path>
+            </svg>
+        </div>
+        <div>
+            <strong class="font-bold">Gagal!</strong>
+            <span class="block">Data deck gagal dihapus. Silakan coba lagi.</span>
+        </div>
+        <button class="ml-auto pl-3" onclick="hideAlert()">
+            <svg class="fill-current h-6 w-6 text-red-500" role="button" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                <title>Tutup</title>
+                <path d="M14.348 5.652a1 1 0 10-1.414-1.414L10 7.172 7.066 4.238a1 1 0 10-1.414 1.414L8.586 8.586l2.934 2.934a1 1 0 001.414-1.414L11.414 8.586l2.934-2.934z"/>
+            </svg>
+        </button>
+    </div>
+</div>
+
+
+    <div id="deckList" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <!-- Decks will be dynamically added here -->
+    </div>
+
+    <!-- New Deck Modal -->
+    <div id="newDeckModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+      <div class="bg-white rounded-xl shadow-lg w-11/12 max-w-md p-6 animate__animated animate__fadeInUp">
+        <h3 class="text-xl font-semibold mb-4 text-gray-800">Create New Deck</h3>
+        <div class="mb-4">
+          <label for="deckTitle" class="block text-sm font-medium text-gray-700 mb-1">Deck Title</label>
+          <input type="text" id="deckTitle" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500">
+        </div>
+        <div class="mb-4">
+          <label for="deckDescription" class="block text-sm font-medium text-gray-700 mb-1">Description (optional)</label>
+          <textarea id="deckDescription" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"></textarea>
+        </div>
+        <div class="flex justify-end space-x-3">
+          <button id="cancelDeckBtn" class="px-4 py-2 text-gray-700 hover:text-gray-900">Cancel</button>
+          <button id="saveDeckBtn" class="px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700">Save Deck</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Bottom Navigation -->
+  <nav class="fixed bottom-0 left-0 right-0 bg-white shadow-lg border-t border-gray-200 z-40">
+    <div class="flex justify-around items-center h-16">
+      <a href="/dashboard" class="flex flex-col items-center justify-center w-full py-2 text-indigo-600">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+        </svg>
+        <span class="text-xs">Home</span>
+      </a>
+      <button id="studyBtn" class="flex flex-col items-center justify-center w-full py-2 text-gray-500 hover:text-indigo-600">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+        </svg>
+        <span class="text-xs">Study</span>
+      </button>
+      <button id="profileBtn" class="flex flex-col items-center justify-center w-full py-2 text-gray-500 hover:text-indigo-600">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+        </svg>
+        <span class="text-xs">Profile</span>
+      </button>
+    </div>
+  </nav>
+
+  <script src="/js/dashboard.js"></script>
+</body>
+</html>
