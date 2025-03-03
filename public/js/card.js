@@ -39,6 +39,7 @@ const resetBtn = document.getElementById('resetBtn');
 const completedState = document.getElementById('completedState');
 const restartBtn = document.getElementById('restartBtn');
 const backToDeckBtn = document.getElementById('backToDeckBtn');
+const memo = document.getElementById('memo');
 
 // Variables for tracking cards
 let cards = [];
@@ -161,6 +162,7 @@ function updateCardDisplay() {
     // Update the card content
     cardFront.textContent = currentCard.front;
     cardBack.textContent = currentCard.back;
+    memo.textContent = currentCard.memo;
     
     // Update progress text
     progressTextElement.textContent = `Card ${currentCardIndex + 1}/${cards.length}`;

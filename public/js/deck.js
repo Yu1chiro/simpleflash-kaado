@@ -37,6 +37,7 @@ const firebaseConfig = {
   const saveCardBtn = document.getElementById('saveCardBtn');
   const playDeckBtn = document.getElementById('playDeckBtn');
   const studyBtnNav = document.getElementById('studyBtnNav');
+  const cardMemoInput = document.getElementById('cardMemo');
   
   // Check authentication state
   auth.onAuthStateChanged((user) => {
@@ -53,14 +54,26 @@ const firebaseConfig = {
   // Ambil elemen textarea
 const cardFront = document.getElementById('cardFront');
 const cardBack = document.getElementById('cardBack');
+const cardMemo = document.getElementById('cardMemo');
+
+let enterCount = 0;
 
 // Tambahkan event listener untuk textarea Front
 cardFront.addEventListener('keydown', function(event) {
     if (event.key === 'Enter') {
         event.preventDefault(); // Mencegah enter membuat baris baru
-        cardBack.focus(); // Pindah fokus ke textarea Back
+        cardBack.focus();
     }
 });
+
+// Tambahkan event listener untuk textarea Back
+cardBack.addEventListener('keydown', function(event) {
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        cardMemo.focus();
+    }
+});
+
   // Back button
   backBtn.addEventListener('click', () => {
     const audio = new Audio('/img/primary.wav'); // Ganti dengan nama file audio kamu
@@ -120,8 +133,8 @@ cardFront.addEventListener('keydown', function(event) {
   
   // Save card button
   saveCardBtn.addEventListener('click', () => {
-    const audio = new Audio('/img/primary.wav'); // Ganti dengan nama file audio kamu
-    audio.volume = 0.5; // Set volume ke 50%
+    const audio = new Audio('/img/primary.wav');
+    audio.volume = 0.5;
     audio.play();
     
     const user = auth.currentUser;
@@ -130,6 +143,7 @@ cardFront.addEventListener('keydown', function(event) {
     
     const front = cardFrontInput.value.trim();
     const back = cardBackInput.value.trim();
+    const memo = cardMemoInput.value.trim();
     const cardId = cardIdInput.value;
     
     if (!front || !back) {
@@ -139,10 +153,10 @@ cardFront.addEventListener('keydown', function(event) {
     
     if (cardId) {
       // Update existing card
-      updateCard(user.uid, deckId, cardId, front, back);
+      updateCard(user.uid, deckId, cardId, front, back, memo);
     } else {
       // Create new card
-      createCard(user.uid, deckId, front, back);
+      createCard(user.uid, deckId, front, back, memo);
     }
   });
   
@@ -224,12 +238,19 @@ cardFront.addEventListener('keydown', function(event) {
     const cardElement = document.createElement('div');
     cardElement.className = 'bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition animate__animated animate__fadeIn';
     
+    // Create memo HTML only if memo exists
+    const memoHtml = card.memo ? `
+      <h4 class="font-semibold text-gray-800 mb-2">Memo :</h4>
+      <p class="text-gray-600 mb-4 italic">${card.memo}</p>
+    ` : '';
+    
     cardElement.innerHTML = `
       <div class="p-4">
         <h4 class="font-semibold text-gray-800 mb-2">Front :</h4>
         <p class="text-gray-700 mb-4">${card.front}</p>
         <h4 class="font-semibold text-gray-800 mb-2">Back :</h4>
         <p class="text-gray-700 mb-4">${card.back}</p>
+        ${memoHtml}
         <div class="flex justify-end space-x-2">
           <button class="edit-card-btn text-blue-600 hover:text-blue-800" data-id="${card.id}">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -245,22 +266,23 @@ cardFront.addEventListener('keydown', function(event) {
       </div>
     `;
     
+    // Rest of the function stays the same
     cardList.appendChild(cardElement);
     
     // Add event listeners to the buttons
     cardElement.querySelector('.edit-card-btn').addEventListener('click', () => {
-        const audio = new Audio('/img/primary.wav'); // Ganti dengan nama file audio kamu
-        audio.volume = 0.5; // Set volume ke 50%
-        audio.play();
-        
+      const audio = new Audio('/img/primary.wav');
+      audio.volume = 0.5;
+      audio.play();
+      
       openCardModal(card);
     });
     
     cardElement.querySelector('.delete-card-btn').addEventListener('click', () => {
-        const audio = new Audio('/img/primary.wav'); // Ganti dengan nama file audio kamu
-        audio.volume = 0.5; // Set volume ke 50%
-        audio.play();
-        
+      const audio = new Audio('/img/primary.wav');
+      audio.volume = 0.5;
+      audio.play();
+      
       if (confirm('Are you sure you want to delete this card?')) {
         deleteCard(auth.currentUser.uid, deckId, card.id);
       }
@@ -272,36 +294,34 @@ cardFront.addEventListener('keydown', function(event) {
     window.location.href = '/user-info.html';
   });
   
-  // Open card modal
   function openCardModal(card = null) {
     if (card) {
       // Edit existing card
       cardModalTitle.textContent = 'Edit Flashcard';
       cardFrontInput.value = card.front;
       cardBackInput.value = card.back;
+      cardMemoInput.value = card.memo || '';
       cardIdInput.value = card.id;
     } else {
       // Create new card
       cardModalTitle.textContent = 'Create New Flashcard';
       cardFrontInput.value = '';
       cardBackInput.value = '';
+      cardMemoInput.value = '';
       cardIdInput.value = '';
     }
     
     cardModal.classList.remove('hidden');
     cardFrontInput.focus();
   }
-  
-  // Close card modal
   function closeCardModal() {
     cardModal.classList.add('hidden');
     cardFrontInput.value = '';
     cardBackInput.value = '';
+    cardMemoInput.value = '';
     cardIdInput.value = '';
   }
-  
-  // Create a new card
-  function createCard(userId, deckId, front, back) {
+  function createCard(userId, deckId, front, back, memo) {
     // Generate a new card key
     const newCardKey = database.ref().child(`users/${userId}/decks/${deckId}/cards`).push().key;
     
@@ -310,6 +330,7 @@ cardFront.addEventListener('keydown', function(event) {
       id: newCardKey,
       front: front,
       back: back,
+      memo: memo || '',
       created: firebase.database.ServerValue.TIMESTAMP
     };
     
@@ -323,13 +344,12 @@ cardFront.addEventListener('keydown', function(event) {
         alert('Failed to create card. Please try again.');
       });
   }
-  
-  // Update an existing card
-  function updateCard(userId, deckId, cardId, front, back) {
+  function updateCard(userId, deckId, cardId, front, back, memo) {
     // Update the card in the database
     database.ref(`users/${userId}/decks/${deckId}/cards/${cardId}`).update({
       front: front,
       back: back,
+      memo: memo || '',
       updated: firebase.database.ServerValue.TIMESTAMP
     })
       .then(() => {
