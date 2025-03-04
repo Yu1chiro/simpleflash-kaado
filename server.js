@@ -57,6 +57,9 @@ app.get('/flashcard/:deckId', (req, res) => {
 app.get('/quiz/:deckId', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'quiz.html'));
   });
+app.get('/quiz-blank/:deckId', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'quiz-blank.html'));
+  });
   
 
 // Start the server
