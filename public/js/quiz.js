@@ -230,11 +230,7 @@ return priorityScoreB - priorityScoreA;
 });
 
 // Pilih subset kartu untuk soal
-<<<<<<< HEAD
 const selectedCards = prioritizedCards.slice(0, Math.min(prioritizedCards.length, 500));
-=======
-const selectedCards = prioritizedCards.slice(0, Math.min(prioritizedCards.length, 100));
->>>>>>> a48b79bee34fad8a691bb961d6231824052ac177
 
 // Acak kartu yang dipilih untuk mencegah pola yang mudah ditebak
 const shuffledSelectedCards = [...selectedCards].sort(() => Math.random() - 0.5);
