@@ -60,6 +60,9 @@ app.get('/quiz/:deckId', (req, res) => {
 app.get('/quiz-blank/:deckId', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'quiz-blank.html'));
   });
+app.get('/memory/:deckId', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'memory.html'));
+  });
   
 
 // Start the server

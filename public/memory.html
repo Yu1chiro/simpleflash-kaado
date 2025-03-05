@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Permainan Kartu Memori</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+</head>
+<body class="bg-gradient-to-br from-blue-100 to-blue-300 min-h-screen flex flex-col items-center justify-center p-4 font-sans">
+    <div class="bg-white shadow-2xl rounded-2xl p-6 w-full max-w-md mx-auto">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-bold text-blue-800">Permainan Kartu Memori</h1>
+            <div class="flex space-x-4">
+                <div class="bg-green-100 p-2 rounded-lg">
+                    <span class="text-sm font-semibold text-green-800">Skor: </span>
+                    <span id="score" class="font-bold text-green-600">0</span>
+                </div>
+                <div class="bg-red-100 p-2 rounded-lg">
+                    <span class="text-sm font-semibold text-red-800">Percobaan: </span>
+                    <span id="attempts" class="font-bold text-red-600">0</span>
+                </div>
+            </div>
+        </div>
+
+        <div id="login-section" class="text-center mb-6">
+            <button id="login-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300 transform hover:scale-105">
+                Masuk untuk Memulai
+            </button>
+        </div>
+
+        <div id="loading-section" class="flex justify-center items-center space-x-4">
+            <div class="animate-spin rounded-full h-8 w-8 border-t-2 border-blue-500"></div>
+            <p class="text-blue-700">Memuat permainan...</p>
+        </div>
+
+        <div id="game-section" class="hidden">
+            <div id="game-board" class="grid grid-cols-4 gap-3">
+                <!-- Kartu akan dihasilkan secara dinamis oleh JavaScript -->
+            </div>
+            <div class="flex justify-between mt-4">
+                <button id="load-more-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300 transform hover:scale-105">
+                    Kartu Selanjutnya
+                </button>
+                <div id="card-progress" class="text-gray-600 self-center">
+                    Kartu: <span id="current-cards">12</span>/24
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+       .memory-card {
+    width: 100%;
+    aspect-ratio: 2 / 3;
+    position: relative;
+    cursor: pointer;
+    perspective: 1000px;
+    transition: all 0.7s ease-in-out;
+}
+
+.memory-card .card-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transition: transform 0.7s;
+    transform-style: preserve-3d;
+}
+
+.memory-card .card-front,
+.memory-card .card-back {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    backface-visibility: hidden;
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 0.5rem;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.memory-card .card-front {
+    background-color: #bfdbfe;
+    color: #1e3a8a;
+    transform: rotateY(180deg);
+}
+
+.memory-card .card-back {
+    background-color: #3b82f6;
+    color: #ffffff;
+}
+
+.memory-card.flipped .card-inner {
+    transform: rotateY(180deg);
+}
+
+.memory-card.matched {
+    opacity: 0.5;
+    cursor: default;
+    animation: pulse 1s infinite;
+}
+
+.memory-card.match-highlight {
+    box-shadow: 0 0 0 4px #10b981, 0 0 10px #10b981;
+    animation: bounce 0.5s infinite alternate;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+@keyframes bounce {
+    0% {
+        transform: translateY(0);
+    }
+    100% {
+        transform: translateY(-10px);
+    }
+}
+    </style>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyDnotXzrFZPyZSPfy7nVcFTq72Kr2mCn4c",
+            authDomain: "flashcards-project-73131.firebaseapp.com",
+            projectId: "flashcards-project-73131",
+            storageBucket: "flashcards-project-73131.firebasestorage.app",
+            messagingSenderId: "326762118238",
+            appId: "1:326762118238:web:afd8037256085c35e108cf",
+            measurementId: "G-2CMLSN7KPW"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+        const deckId = window.location.pathname.split('/').pop();
+
+        class MemoryCardGame {
+            constructor(userId) {
+                this.userId = userId;
+                this.cards = [];
+                this.displayedCards = [];
+                this.matchedPairs = 0;
+                this.attempts = 0;
+                this.selectedCards = [];
+                this.currentCardSet = 0;
+
+                this.elements = {
+                    gameBoard: document.getElementById('game-board'),
+                    scoreDisplay: document.getElementById('score'),
+                    attemptsDisplay: document.getElementById('attempts'),
+                    loadMoreBtn: document.getElementById('load-more-btn'),
+                    cardProgress: document.getElementById('current-cards')
+                };
+            }
+
+            // Metode untuk mendapatkan deck ID secara dinamis
+            async getDeckId() {
+                try {
+                    const decksRef = database.ref(`users/${this.userId}/decks`);
+                    const snapshot = await decksRef.once('value');
+                    
+                    if (snapshot.exists()) {
+                        const deckIds = Object.keys(snapshot.val());
+                        return deckIds[0];
+                    } else {
+                        throw new Error('Tidak ada deck ditemukan');
+                    }
+                } catch (error) {
+                    console.error('Kesalahan mendapatkan deck ID:', error);
+                    Swal.fire({
+                        title: 'Kesalahan',
+                        text: 'Tidak dapat menemukan deck',
+                        icon: 'error'
+                    });
+                    return null;
+                }
+            }
+
+            // Perbaikan metode loadCards untuk memastikan pasangan linguistic
+            async loadCards() {
+                try {
+                    const deckId = await this.getDeckId();
+                    
+                    if (!deckId) {
+                        console.error('Tidak ada deck ID yang valid');
+                        return;
+                    }
+
+                    const ref = database.ref(`users/${this.userId}/decks/${deckId}/cards`);
+                    const snapshot = await ref.once('value');
+
+                    if (snapshot.exists()) {
+                        const cardsData = snapshot.val();
+                        const processedCards = [];
+
+                        // Proses kartu dengan memastikan pasangan linguistik
+                        Object.values(cardsData).forEach(card => {
+                            // Pastikan kartu memiliki front dan back
+                            if (card.front && card.back) {
+                                processedCards.push({
+                                    front: card.front,
+                                    back: card.back
+                                });
+                            }
+                        });
+
+                        // Pastikan minimal 2 pasangan kartu
+                        if (processedCards.length < 2) {
+                            Swal.fire({
+                                title: 'Kartu Tidak Mencukupi',
+                                text: 'Deck memerlukan minimal 2 pasangan kartu untuk permainan memori.',
+                                icon: 'warning'
+                            });
+                            return;
+                        }
+
+                        // Siapkan kartu untuk permainan memori
+                        this.cards = this.prepareLinguisticCardPairs(processedCards);
+                        this.renderFirstCards();
+                        this.setupLoadMoreButton();
+                    } else {
+                        Swal.fire({
+                            title: 'Deck Kosong',
+                            text: 'Tidak ada kartu dalam deck ini.',
+                            icon: 'warning'
+                        });
+                    }
+                } catch (error) {
+                    console.error("Error memuat kartu:", error);
+                    Swal.fire({
+                        title: 'Kesalahan Sistem',
+                        text: `Gagal memuat kartu: ${error.message}`,
+                        icon: 'error'
+                    });
+                }
+            }
+
+            // Metode baru untuk menyiapkan pasangan kartu linguistik
+            prepareLinguisticCardPairs(cards) {
+                const linguisticPairs = [];
+
+                // Buat pasangan kartu berdasarkan front dan back
+                cards.forEach(card => {
+                    // Tambahkan dua kartu untuk setiap pasangan
+                    linguisticPairs.push({
+                        front: card.front,
+                        back: card.back,
+                        type: 'front'
+                    });
+                    linguisticPairs.push({
+                        front: card.back,
+                        back: card.front,
+                        type: 'back'
+                    });
+                });
+
+                // Acak kartu
+                return this.shuffleCards(linguisticPairs);
+            }
+
+            renderFirstCards() {
+                const initialCards = this.cards.slice(0, 12);
+                this.displayedCards = initialCards;
+                this.renderGameBoard(initialCards);
+            }
+
+            setupLoadMoreButton() {
+                this.elements.loadMoreBtn.addEventListener('click', () => {
+                    this.currentCardSet++;
+                    const startIndex = 12 * this.currentCardSet;
+                    const endIndex = startIndex + 12;
+                    const nextCards = this.cards.slice(startIndex, endIndex);
+
+                    if (nextCards.length > 0) {
+                        this.displayedCards = [...this.displayedCards, ...nextCards];
+                        this.renderGameBoard(this.displayedCards);
+                        this.elements.cardProgress.textContent = `Kartu: ${this.displayedCards.length}/${this.cards.length}`;
+
+                        if (endIndex >= this.cards.length) {
+                            this.elements.loadMoreBtn.disabled = true;
+                            this.elements.loadMoreBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                        }
+                    }
+                });
+            }
+
+            renderGameBoard(cardsToRender) {
+                this.elements.gameBoard.innerHTML = '';
+                cardsToRender.forEach((card, index) => {
+                    const cardElement = document.createElement('div');
+                    cardElement.classList.add('memory-card');
+                    cardElement.dataset.index = index;
+                    cardElement.innerHTML = `
+                        <div class="card-inner">
+                            <div class="card-front">${card.front}</div>
+                            <div class="card-back">?</div>
+                        </div>
+                    `;
+                    cardElement.addEventListener('click', () => this.selectCard(cardElement));
+                    this.elements.gameBoard.appendChild(cardElement);
+                });
+            }
+
+            // Periksa kecocokan kartu berdasarkan pasangan linguistik
+            checkMatch() {
+                const [card1, card2] = this.selectedCards;
+                const index1 = card1.dataset.index;
+                const index2 = card2.dataset.index;
+
+                // Cocokkan berdasarkan back dari kartu
+                if (this.cards[index1].back === this.cards[index2].front) {
+                    card1.classList.add('matched', 'match-highlight');
+                    card2.classList.add('matched', 'match-highlight');
+                    this.matchedPairs++;
+                    this.updateScore();
+
+                    setTimeout(() => {
+                        card1.classList.remove('match-highlight');
+                        card2.classList.remove('match-highlight');
+                    }, 1500);
+                } else {
+                    // Tidak cocok, balikkan kartu
+                    setTimeout(() => {
+                        card1.classList.remove('flipped');
+                        card2.classList.remove('flipped');
+                    }, 1000);
+                }
+
+                this.selectedCards = [];
+            }
+
+            updateScore() {
+                const baseScore = 100;
+                const score = this.matchedPairs * baseScore;
+                this.elements.scoreDisplay.textContent = score;
+            }
+
+            // Acak kartu menggunakan algoritma Fisher-Yates
+            shuffleCards(cards) {
+                for (let i = cards.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [cards[i], cards[j]] = [cards[j], cards[i]];
+                }
+                return cards;
+            }
+
+            // Logika memilih kartu
+            selectCard(cardElement) {
+                if (this.selectedCards.length >= 2 || 
+                    cardElement.classList.contains('matched') || 
+                    cardElement.classList.contains('flipped')) return;
+
+                cardElement.classList.add('flipped');
+                this.selectedCards.push(cardElement);
+
+                if (this.selectedCards.length === 2) {
+                    this.attempts++;
+                    this.elements.attemptsDisplay.textContent = this.attempts;
+                    this.checkMatch();
+                }
+            }
+        }
+
+        // Inisialisasi game
+        document.addEventListener('DOMContentLoaded', () => {
+            firebase.auth().onAuthStateChanged((user) => {
+                const loginSection = document.getElementById('login-section');
+                const gameSection = document.getElementById('game-section');
+                const loadingSection = document.getElementById('loading-section');
+
+                if (user) {
+                    loginSection.classList.add('hidden');
+                    loadingSection.classList.remove('hidden');
+
+                    const game = new MemoryCardGame(user.uid);
+                    game.loadCards().then(() => {
+                        loadingSection.classList.add('hidden');
+                        gameSection.classList.remove('hidden');
+                    });
+                } else {
+                    loginSection.classList.remove('hidden');
+                    gameSection.classList.add('hidden');
+                    loadingSection.classList.add('hidden');
+                }
+            });
+
+            // Tambahkan event listener untuk tombol login
+            document.getElementById('login-btn').addEventListener('click', () => {
+                const provider = new firebase.auth.GoogleAuthProvider();
+                firebase.auth().signInWithPopup(provider);
+            });
+        });
+    </script>
+</body>
+</html>
