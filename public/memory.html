@@ -249,28 +249,57 @@
                 }
             }
 
-            // Metode baru untuk menyiapkan pasangan kartu linguistik
             prepareLinguisticCardPairs(cards) {
-                const linguisticPairs = [];
+    const linguisticPairs = [];
 
-                // Buat pasangan kartu berdasarkan front dan back
-                cards.forEach(card => {
-                    // Tambahkan dua kartu untuk setiap pasangan
-                    linguisticPairs.push({
-                        front: card.front,
-                        back: card.back,
-                        type: 'front'
-                    });
-                    linguisticPairs.push({
-                        front: card.back,
-                        back: card.front,
-                        type: 'back'
-                    });
-                });
+    // Buat pasangan kartu berdasarkan front dan back
+    cards.forEach(card => {
+        linguisticPairs.push({
+            front: card.front,
+            back: card.back,
+            type: 'front'
+        });
+        linguisticPairs.push({
+            front: card.back,
+            back: card.front,
+            type: 'back'
+        });
+    });
 
-                // Acak kartu
-                return this.shuffleCards(linguisticPairs);
+    const shuffledPairs = [];
+    for (let i = 0; i < linguisticPairs.length; i += 2) {
+        const pair = [linguisticPairs[i], linguisticPairs[i + 1]];
+        this.shuffleCards(pair);
+        shuffledPairs.push(...pair);
+    }
+
+    // Tambahkan logika untuk memisahkan pasangan kartu yang berdekatan
+    for (let i = 0; i < shuffledPairs.length - 1; i++) {
+        if (shuffledPairs[i].front === shuffledPairs[i + 1].back || 
+            shuffledPairs[i].back === shuffledPairs[i + 1].front) {
+            // Cari kartu lain untuk ditukar
+            for (let j = i + 2; j < shuffledPairs.length; j++) {
+                if (shuffledPairs[i].front !== shuffledPairs[j].back && 
+                    shuffledPairs[i].back !== shuffledPairs[j].front) {
+                    // Tukar kartu
+                    [shuffledPairs[i + 1], shuffledPairs[j]] = [shuffledPairs[j], shuffledPairs[i + 1]];
+                    break;
+                }
             }
+        }
+    }
+
+    return shuffledPairs;
+}
+
+// Acak kartu menggunakan algoritma Fisher-Yates
+shuffleCards(cards) {
+    for (let i = cards.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [cards[i], cards[j]] = [cards[j], cards[i]];
+    }
+    return cards;
+}
 
             renderFirstCards() {
                 const initialCards = this.cards.slice(0, 12);
@@ -349,14 +378,7 @@
                 this.elements.scoreDisplay.textContent = score;
             }
 
-            // Acak kartu menggunakan algoritma Fisher-Yates
-            shuffleCards(cards) {
-                for (let i = cards.length - 1; i > 0; i--) {
-                    const j = Math.floor(Math.random() * (i + 1));
-                    [cards[i], cards[j]] = [cards[j], cards[i]];
-                }
-                return cards;
-            }
+           
 
             // Logika memilih kartu
             selectCard(cardElement) {
