@@ -29,6 +29,12 @@ const deckDescriptionInput = document.getElementById('deckDescription');
 const deckListElement = document.getElementById('deckList');
 const studyIcon = document.getElementById('studyBtn');
 const profileBtn = document.getElementById('profileBtn');
+// Tambahkan di bagian DOM Elements
+const editDeckModal = document.getElementById('editDeckModal');
+const editDeckTitleInput = document.getElementById('editDeckTitle');
+const editDeckDescriptionInput = document.getElementById('editDeckDescription');
+const cancelEditDeckBtn = document.getElementById('cancelEditDeckBtn');
+const saveEditDeckBtn = document.getElementById('saveEditDeckBtn');
 
 // Variabel untuk melacak apakah data sudah di-load
 let decksLoaded = false;
@@ -144,34 +150,110 @@ function clearDeckForm() {
 }
 
 // Load user's decks
-function loadDecks(uid) {
-  // Detach any existing listeners first
-  database.ref(`users/${uid}/decks`).off();
+
+// Fungsi untuk menampilkan modal edit
+function showEditDeckModal(deck) {
+    const audio = new Audio('/img/primary.wav');
+    audio.volume = 0.5;
+    audio.play();
   
-  database.ref(`users/${uid}/decks`).on('value', (snapshot) => {
-    deckListElement.innerHTML = '';
+    editDeckTitleInput.value = deck.title;
+    editDeckDescriptionInput.value = deck.description || '';
+    editDeckModal.classList.remove('hidden');
+    editDeckModal.dataset.deckId = deck.id;
+  }
+  
+  // Fungsi untuk menyimpan perubahan deck
+  function saveEditDeck() {
+    const user = auth.currentUser;
+    const deckId = editDeckModal.dataset.deckId;
     
-    if (!snapshot.exists()) {
-      // No decks found
-      deckListElement.innerHTML = `
-        <div class="col-span-full text-center py-8">
-          <p class="text-gray-500">You don't have any decks yet.</p>
-          <p class="text-gray-500 mt-2">Click "New Deck" to create your first flashcard deck!</p>
-        </div>
-      `;
+    const newTitle = editDeckTitleInput.value.trim();
+    const newDescription = editDeckDescriptionInput.value.trim();
+    
+    if (!newTitle) {
+      alert('Please enter a deck title');
       return;
     }
     
-    // Add each deck to the list
-    snapshot.forEach((deckSnapshot) => {
-      const deck = deckSnapshot.val();
-      addDeckToList(deck);
+    database.ref(`users/${user.uid}/decks/${deckId}`).update({
+      title: newTitle,
+      description: newDescription
+    })
+    .then(() => {
+      editDeckModal.classList.add('hidden');
+      showAlert('success');
+    })
+    .catch((error) => {
+      console.error('Error updating deck:', error);
+      showAlert('error');
     });
-    
-    decksLoaded = true;
+  }
+  
+  // Tambahkan event listener untuk tombol edit pada setiap deck
+  function addEditButtonListeners() {
+    document.querySelectorAll('.edit-deck-btn').forEach(button => {
+      button.addEventListener('click', function(e) {
+        e.stopPropagation();
+        const deckId = this.getAttribute('data-id');
+        
+        // Ambil data deck dari Firebase
+        const user = auth.currentUser;
+        database.ref(`users/${user.uid}/decks/${deckId}`).once('value')
+          .then((snapshot) => {
+            const deck = snapshot.val();
+            showEditDeckModal(deck);
+          })
+          .catch((error) => {
+            console.error('Error fetching deck data:', error);
+            showAlert('error');
+          });
+      });
+    });
+  }
+  
+  // Tambahkan event listener untuk modal edit
+  cancelEditDeckBtn.addEventListener('click', () => {
+    const audio = new Audio('/img/primary.wav');
+    audio.volume = 0.5;
+    audio.play();
+    editDeckModal.classList.add('hidden');
   });
-}
-
+  
+  saveEditDeckBtn.addEventListener('click', () => {
+    const audio = new Audio('/img/primary.wav');
+    audio.volume = 0.5;
+    audio.play();
+    saveEditDeck();
+  });
+  
+  // Panggil fungsi ini setelah decks di-load
+  function loadDecks(uid) {
+    database.ref(`users/${uid}/decks`).on('value', (snapshot) => {
+      deckListElement.innerHTML = '';
+      
+      if (!snapshot.exists()) {
+        // No decks found
+        deckListElement.innerHTML = `
+          <div class="col-span-full text-center py-8">
+            <p class="text-gray-500">You don't have any decks yet.</p>
+            <p class="text-gray-500 mt-2">Click "New Deck" to create your first flashcard deck!</p>
+          </div>
+        `;
+        return;
+      }
+      
+      snapshot.forEach((deckSnapshot) => {
+        const deck = deckSnapshot.val();
+        addDeckToList(deck);
+      });
+      
+      // Tambahkan event listener untuk tombol edit setelah decks di-load
+      addEditButtonListeners();
+      
+      decksLoaded = true;
+    });
+  }
 // Fungsi untuk menampilkan alert
 function showAlert(type) {
     hideAlert();
@@ -312,11 +394,11 @@ function addDeckToList(deck) {
   
  
   // Add event listener for edit button
-  const editButton = deckElement.querySelector('.edit-deck-btn');
-  editButton.addEventListener('click', function(e) {
-    e.stopPropagation();
-    window.location.href = `/deck/${this.getAttribute('data-id')}`;
-  });
+//   const editButton = deckElement.querySelector('.edit-deck-btn');
+//   editButton.addEventListener('click', function(e) {
+//     e.stopPropagation();
+//     window.location.href = `/deck/${this.getAttribute('data-id')}`;
+//   });
 
   // Add event listener for play button
   const playButton = deckElement.querySelector('.play-deck-btn');

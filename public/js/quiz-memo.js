@@ -146,11 +146,11 @@ function assessCardDifficulty(card) {
 // Implementasi sederhana - berdasarkan panjang teks
 // Dalam implementasi nyata, Anda dapat menggunakan metrik lain
 const frontLength = card.front.length;
-const backLength = card.back.length;
+const memoLength = card.memo.length;
 
-if (frontLength < 15 && backLength < 15) {
+if (frontLength < 15 && memoLength < 15) {
 return 'easy';
-} else if (frontLength < 30 && backLength < 30) {
+} else if (frontLength < 30 && memoLength < 30) {
 return 'medium';
 } else {
 return 'hard';
@@ -247,8 +247,8 @@ const question = {
     id: index,
     cardId: cardId,  // Simpan ID kartu untuk memperbarui performa nanti
     questionText: card.front,
-    correctAnswer: card.back,
-    options: generateOptions(card.back, cards),
+    correctAnswer: card.memo,
+    options: generateOptions(card.memo, cards),
     difficulty: userPerformance[cardId].difficulty
 };
 
@@ -397,8 +397,8 @@ database.ref(`users/${userId}/decks/${deckId}/cards`).once('value')
 function generateOptions(correctAnswer, allCards) {
     // Get 3 random incorrect options from other cards
     const incorrectOptions = allCards
-        .filter(card => card.back !== correctAnswer)
-        .map(card => card.back)
+        .filter(card => card.memo !== correctAnswer)
+        .map(card => card.memo)
         .sort(() => Math.random() - 0.5)
         .slice(0, 3);
     
