@@ -77,14 +77,14 @@ cardBack.addEventListener('keydown', function(event) {
     }
 });
 
-  // Back button
-  backBtn.addEventListener('click', () => {
-    const audio = new Audio('/img/primary.wav'); // Ganti dengan nama file audio kamu
-    audio.volume = 0.5; // Set volume ke 50%
-    audio.play();
+//   // Back button
+//   backBtn.addEventListener('click', () => {
+//     const audio = new Audio('/img/primary.wav'); // Ganti dengan nama file audio kamu
+//     audio.volume = 0.5; // Set volume ke 50%
+//     audio.play();
     
-    window.location.href = '/dashboard';
-  });
+//     window.location.href = '/dashboard';
+//   });
   
   // Play deck button
   playDeckBtn.addEventListener('click', () => {
