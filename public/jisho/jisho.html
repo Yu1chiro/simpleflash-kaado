@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Japanese Dictionary</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.6.0/axios.min.js"></script>
+    <style>
+        .furigana {
+            font-size: 0.8rem;
+            color: #9CA3AF;
+        }
+        .loading-spinner {
+            display: none;
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: #3B82F6;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .word-container {
+            transition: all 0.3s ease;
+        }
+        .word-container:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <div class="max-w-4xl mx-auto">
+            <header class="mb-8 text-center">
+                <h1 class="text-3xl font-bold text-gray-800 mb-2">日本語辞書</h1>
+                <p class="text-gray-600">Kamus Jepang dengan Takoboto</p>
+            </header>
+
+            <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+                <div class="mb-6">
+                    <label for="searchInput" class="block text-sm font-medium text-gray-700 mb-2">Cari Kata Jepang:</label>
+                    <div class="flex">
+                        <input
+                            type="text"
+                            id="searchInput"
+                            class="flex-grow px-4 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="Masukkan kanji, hiragana, atau romaji..."
+                        >
+                        <button
+                            id="searchButton"
+                            class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-r-md transition duration-200"
+                        >
+                            Cari
+                        </button>
+                    </div>
+                </div>
+
+                <div id="loadingIndicator" class="flex justify-center my-4">
+                    <div class="loading-spinner"></div>
+                </div>
+
+                <div id="errorMessage" class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 hidden mb-4">
+                    <p>Terjadi kesalahan saat mengambil data. Silakan coba lagi.</p>
+                </div>
+                
+                <div id="resultsContainer" class="hidden">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">Hasil Pencarian</h2>
+                    
+                    <!-- Hasil Pencarian (Daftar kata) -->
+                    <div id="searchResultsList" class="mb-6 space-y-2"></div>
+                    
+                    <!-- Detail Kata -->
+                    <div id="wordDetailContainer" class="hidden border border-blue-200 rounded-lg p-4 bg-blue-50">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-3">Detail Kata</h3>
+                        <div id="wordDetail" class="space-y-4"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchInput = document.getElementById('searchInput');
+            const searchButton = document.getElementById('searchButton');
+            const loadingIndicator = document.querySelector('.loading-spinner');
+            const resultsContainer = document.getElementById('resultsContainer');
+            const searchResultsList = document.getElementById('searchResultsList');
+            const wordDetailContainer = document.getElementById('wordDetailContainer');
+            const wordDetail = document.getElementById('wordDetail');
+            const errorMessage = document.getElementById('errorMessage');
+
+            // Function to handle search
+            function performSearch() {
+                const query = searchInput.value.trim();
+                if (!query) return;
+
+                // Show loading spinner
+                loadingIndicator.style.display = 'block';
+                resultsContainer.classList.add('hidden');
+                wordDetailContainer.classList.add('hidden');
+                errorMessage.classList.add('hidden');
+
+                // Fetch search results from takoboto
+                fetchSearchResults(query)
+                    .then(data => {
+                        // Hide loading spinner
+                        loadingIndicator.style.display = 'none';
+                        
+                        // Process and display results
+                        if (data && data.results && data.results.length > 0) {
+                            displaySearchResults(data.results);
+                            resultsContainer.classList.remove('hidden');
+                        } else {
+                            // No results
+                            searchResultsList.innerHTML = '<p class="text-gray-600">Tidak ada hasil untuk pencarian Anda.</p>';
+                            resultsContainer.classList.remove('hidden');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching data:', error);
+                        loadingIndicator.style.display = 'none';
+                        errorMessage.classList.remove('hidden');
+                    });
+            }
+
+            // Function to fetch search results
+            async function fetchSearchResults(query) {
+                try {
+                    const response = await axios.get(`/api/jisho/search?q=${encodeURIComponent(query)}`);
+                    return response.data;
+                } catch (error) {
+                    console.error('Error in fetchSearchResults:', error);
+                    throw error;
+                }
+            }
+            
+            // Function to fetch word details
+            async function fetchWordDetails(wordId) {
+                try {
+                    // Show loading spinner
+                    loadingIndicator.style.display = 'block';
+                    wordDetailContainer.classList.add('hidden');
+                    
+                    const response = await axios.get(`/api/jisho/word?id=${encodeURIComponent(wordId)}`);
+                    
+                    // Hide loading spinner
+                    loadingIndicator.style.display = 'none';
+                    
+                    // Display the word details
+                    if (response.data && response.data.word) {
+                        displayWordDetails(response.data.word);
+                        wordDetailContainer.classList.remove('hidden');
+                        
+                        // Scroll to the word details
+                        wordDetailContainer.scrollIntoView({ behavior: 'smooth' });
+                    } else {
+                        console.error('No word details returned');
+                    }
+                    
+                    return response.data;
+                } catch (error) {
+                    console.error('Error in fetchWordDetails:', error);
+                    loadingIndicator.style.display = 'none';
+                    errorMessage.classList.remove('hidden');
+                    throw error;
+                }
+            }
+            
+            // Function to display search results
+            function displaySearchResults(results) {
+                searchResultsList.innerHTML = '';
+                
+                results.forEach(result => {
+                    const resultElement = document.createElement('div');
+                    resultElement.className = 'p-3 bg-white rounded border border-gray-200 cursor-pointer hover:bg-blue-50 transition-colors';
+                    resultElement.dataset.wordId = result.id;
+                    
+                    const wordElement = document.createElement('span');
+                    wordElement.className = 'text-lg font-medium';
+                    wordElement.textContent = result.word;
+                    resultElement.appendChild(wordElement);
+                    
+                    if (result.reading) {
+                        const readingElement = document.createElement('span');
+                        readingElement.className = 'ml-2 text-sm text-gray-500';
+                        readingElement.textContent = `[${result.reading}]`;
+                        resultElement.appendChild(readingElement);
+                    }
+                    
+                    resultElement.addEventListener('click', function() {
+                        fetchWordDetails(result.id);
+                        
+                        // Highlight the selected result
+                        document.querySelectorAll('#searchResultsList > div').forEach(el => {
+                            el.classList.remove('bg-blue-50', 'border-blue-300');
+                        });
+                        this.classList.add('bg-blue-50', 'border-blue-300');
+                    });
+                    
+                    searchResultsList.appendChild(resultElement);
+                });
+            }
+            
+            // Function to display word details
+            function displayWordDetails(wordData) {
+                wordDetail.innerHTML = '';
+                
+                // Create main word container
+                const wordContainer = document.createElement('div');
+                wordContainer.className = 'bg-white p-4 rounded-lg shadow-sm';
+                
+                // Word and reading
+                const headerSection = document.createElement('div');
+                headerSection.className = 'mb-4';
+                
+                const wordElement = document.createElement('span');
+                wordElement.className = 'text-2xl font-bold';
+                wordElement.textContent = wordData.word;
+                headerSection.appendChild(wordElement);
+                
+                if (wordData.reading) {
+                    const readingElement = document.createElement('span');
+                    readingElement.className = 'ml-3 text-lg text-gray-600';
+                    readingElement.textContent = `[${wordData.reading}]`;
+                    headerSection.appendChild(readingElement);
+                }
+                
+                wordContainer.appendChild(headerSection);
+                
+                // Part of speech
+                if (wordData.partOfSpeech) {
+                    const posElement = document.createElement('div');
+                    posElement.className = 'text-sm text-gray-500 mb-3 italic';
+                    posElement.textContent = wordData.partOfSpeech;
+                    wordContainer.appendChild(posElement);
+                }
+                
+                // Meanings
+                if (wordData.meanings && wordData.meanings.length > 0) {
+                    const meaningsSection = document.createElement('div');
+                    meaningsSection.className = 'mb-4';
+                    
+                    const meaningsTitle = document.createElement('h4');
+                    meaningsTitle.className = 'text-md font-medium text-gray-700 mb-2';
+                    meaningsTitle.textContent = 'Arti:';
+                    meaningsSection.appendChild(meaningsTitle);
+                    
+                    const meaningsList = document.createElement('ul');
+                    meaningsList.className = 'pl-5 space-y-2';
+                    
+                    wordData.meanings.forEach(meaning => {
+                        const meaningItem = document.createElement('li');
+                        meaningItem.className = 'flex items-start';
+                        
+                        // Flag for language
+                        const flagSpan = document.createElement('span');
+                        flagSpan.className = 'mr-2 flex-shrink-0 mt-1';
+                        
+                        // Set appropriate flag emoji based on language
+                        let flagEmoji = '🌐';
+                        if (meaning.lang === 'en') flagEmoji = '🇺🇸';
+                        else if (meaning.lang === 'id') flagEmoji = '🇮🇩';
+                        
+                        flagSpan.textContent = flagEmoji;
+                        meaningItem.appendChild(flagSpan);
+                        
+                        // Meaning text
+                        const meaningText = document.createElement('span');
+                        meaningText.textContent = meaning.text;
+                        meaningItem.appendChild(meaningText);
+                        
+                        meaningsList.appendChild(meaningItem);
+                    });
+                    
+                    meaningsSection.appendChild(meaningsList);
+                    wordContainer.appendChild(meaningsSection);
+                }
+                
+                // Examples
+                if (wordData.examples && wordData.examples.length > 0) {
+                    const examplesSection = document.createElement('div');
+                    examplesSection.className = 'border-t border-gray-200 pt-3 mt-3';
+                    
+                    const examplesTitle = document.createElement('h4');
+                    examplesTitle.className = 'text-md font-medium text-gray-700 mb-2';
+                    examplesTitle.textContent = 'Contoh Kalimat:';
+                    examplesSection.appendChild(examplesTitle);
+                    
+                    const examplesList = document.createElement('div');
+                    examplesList.className = 'space-y-3';
+                    
+                    wordData.examples.forEach(example => {
+                        const exampleItem = document.createElement('div');
+                        exampleItem.className = 'bg-gray-50 p-3 rounded';
+                        
+                        const japaneseText = document.createElement('div');
+                        japaneseText.className = 'font-medium';
+                        japaneseText.textContent = example.japanese;
+                        exampleItem.appendChild(japaneseText);
+                        
+                        if (example.translation) {
+                            const translationText = document.createElement('div');
+                            translationText.className = 'text-gray-600 mt-1';
+                            translationText.textContent = example.translation;
+                            exampleItem.appendChild(translationText);
+                        }
+                        
+                        examplesList.appendChild(exampleItem);
+                    });
+                    
+                    examplesSection.appendChild(examplesList);
+                    wordContainer.appendChild(examplesSection);
+                }
+                
+                wordDetail.appendChild(wordContainer);
+            }
+
+            // Event listeners
+            searchButton.addEventListener('click', performSearch);
+            searchInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    performSearch();
+                }
+            });
+        });
+    </script>
+</body>
+</html>

@@ -28,6 +28,7 @@ const deckTitleInput = document.getElementById('deckTitle');
 const deckDescriptionInput = document.getElementById('deckDescription');
 const deckListElement = document.getElementById('deckList');
 const studyIcon = document.getElementById('studyBtn');
+const jisho = document.getElementById('jisho');
 const profileBtn = document.getElementById('profileBtn');
 // Tambahkan di bagian DOM Elements
 const editDeckModal = document.getElementById('editDeckModal');
@@ -386,10 +387,15 @@ function addDeckToList(deck) {
   deckElement.querySelector('.deck-main').addEventListener('click', () => {
     window.location.href = `/deck/${deck.id}`;
   });
+
+// Route
   
   const profileBtn = document.getElementById('profileBtn');
   profileBtn.addEventListener('click', () => {
     window.location.href = '/user-info.html';
+  });
+  jisho.addEventListener('click', () => {
+    window.location.href = '/jisho/jisho.html';
   });
   
  
