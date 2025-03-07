@@ -392,10 +392,10 @@ function addDeckToList(deck) {
   
   const profileBtn = document.getElementById('profileBtn');
   profileBtn.addEventListener('click', () => {
-    window.location.href = '/user-info.html';
+    window.location.href = '/user-info';
   });
   jisho.addEventListener('click', () => {
-    window.location.href = '/jisho/jisho.html';
+    window.location.href = '/jisho';
   });
   
  

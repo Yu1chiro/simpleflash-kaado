@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kamus Jepang dengan Takoboto</title>
+    
+    <!-- Tailwind CSS via CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome untuk ikon -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Axios dan Google Translate API -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.5.0/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@google-cloud/translate@3.7.0"></script>
+    
+    <style>
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #4299e1;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            display: none;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .translate-active {
+            background-color: #4299e1;
+            color: white;
+        }
+        
+        @media (max-width: 640px) {
+            .search-group {
+                flex-direction: column;
+            }
+            
+            .search-input {
+                border-radius: 0.375rem;
+                margin-bottom: 0.5rem;
+            }
+            
+            .search-button {
+                border-radius: 0.375rem;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-6 sm:py-8">
+        <div class="max-w-4xl mx-auto">
+            <header class="mb-6 sm:mb-8 text-center">
+                <h1 class="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">日本語辞書</h1>
+                <p class="text-gray-600">Kamus Jepang dengan Takoboto</p>
+            </header>
+
+            <div class="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-6 sm:mb-8">
+                <!-- Toggle Translate Button -->
+                <div class="flex justify-end mb-4">
+                    <button 
+                        id="translateToggle" 
+                        class="flex items-center space-x-2 px-3 py-1 rounded-full border border-blue-500 text-blue-600 transition-colors duration-200 hover:bg-blue-50"
+                    >
+                        <i class="fas fa-language"></i>
+                        <span id="translateText">Terjemahkan</span>
+                    </button>
+                </div>
+                
+                <div class="mb-6">
+                    <label for="searchInput" class="block text-sm font-medium text-gray-700 mb-2">Cari Kata Jepang:</label>
+                    <div class="flex search-group">
+                        <input
+                            type="text"
+                            id="searchInput"
+                            class="flex-grow px-4 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent search-input"
+                            placeholder="Masukkan kanji, hiragana, atau romaji..."
+                        >
+                        <button
+                            id="searchButton"
+                            class="bg-blue-600 hover:bg-blue-700 text-white px-4 sm:px-6 py-2 rounded-r-md transition duration-200 search-button"
+                        >
+                            <i class="fas fa-search mr-1 hidden sm:inline"></i>
+                            <span>Cari</span>
+                        </button>
+                    </div>
+                </div>
+ <!-- Detail Kata -->
+ <div id="wordDetailContainer" class="hidden border border-blue-200 rounded-lg p-4 bg-blue-50">
+    <h3 class="text-lg font-semibold text-gray-800 mb-3">Detail Kata</h3>
+    <div id="wordDetail" class="space-y-4"></div>
+</div>
+                <div id="loadingIndicator" class="flex justify-center my-4">
+                    <div class="loading-spinner"></div>
+                </div>
+
+                <div id="errorMessage" class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 hidden mb-4">
+                    <p>Terjadi kesalahan saat mengambil data. Silakan coba lagi.</p>
+                </div>
+                
+                <div id="resultsContainer" class="hidden">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">Hasil Pencarian</h2>
+                    
+                    <!-- Hasil Pencarian (Daftar kata) -->
+                    <div id="searchResultsList" class="mb-6 space-y-2 grid grid-cols-1 sm:grid-cols-2 gap-2"></div>
+                    
+                   
+                </div>
+            </div>
+        </div>
+    </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+            const searchInput = document.getElementById('searchInput');
+            const searchButton = document.getElementById('searchButton');
+            const loadingIndicator = document.querySelector('.loading-spinner');
+            const resultsContainer = document.getElementById('resultsContainer');
+            const searchResultsList = document.getElementById('searchResultsList');
+            const wordDetailContainer = document.getElementById('wordDetailContainer');
+            const wordDetail = document.getElementById('wordDetail');
+            const errorMessage = document.getElementById('errorMessage');
+
+            // Function to handle search
+            function performSearch() {
+                const query = searchInput.value.trim();
+                if (!query) return;
+
+                // Show loading spinner
+                loadingIndicator.style.display = 'block';
+                searchButton.style.display = 'none';
+                resultsContainer.classList.add('hidden');
+                wordDetailContainer.classList.add('hidden');
+                errorMessage.classList.add('hidden');
+
+                // Fetch search results from takoboto
+                fetchSearchResults(query)
+                    .then(data => {
+                        // Hide loading spinner
+                        loadingIndicator.style.display = 'none';
+                        searchButton.style.display = 'block';
+                        
+                        // Process and display results
+                        if (data && data.results && data.results.length > 0) {
+                            displaySearchResults(data.results);
+                            resultsContainer.classList.remove('hidden');
+                        } else {
+                            // No results
+                            searchResultsList.innerHTML = '<p class="text-gray-600">Tidak ada hasil untuk pencarian Anda.</p>';
+                            resultsContainer.classList.remove('hidden');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching data:', error);
+                        loadingIndicator.style.display = 'none';
+                        errorMessage.classList.remove('hidden');
+                    });
+            }
+
+            // Function to fetch search results
+            async function fetchSearchResults(query) {
+                try {
+                    const response = await axios.get(`/api/jisho/search?q=${encodeURIComponent(query)}`);
+                    return response.data;
+                } catch (error) {
+                    console.error('Error in fetchSearchResults:', error);
+                    throw error;
+                }
+            }
+            
+            // Function to fetch word details
+            
+            // Function to display search results
+            function displaySearchResults(results) {
+                searchResultsList.innerHTML = '';
+                
+                results.forEach(result => {
+                    const resultElement = document.createElement('div');
+                    resultElement.className = 'p-3 bg-white rounded border border-gray-200 cursor-pointer hover:bg-blue-50 transition-colors';
+                    resultElement.dataset.wordId = result.id;
+                    
+                    const wordElement = document.createElement('span');
+                    wordElement.className = 'text-lg font-medium';
+                    wordElement.textContent = result.word;
+                    resultElement.appendChild(wordElement);
+                    
+                    if (result.reading) {
+                        const readingElement = document.createElement('span');
+                        readingElement.className = 'ml-2 text-sm text-gray-500';
+                        readingElement.textContent = `[${result.reading}]`;
+                        resultElement.appendChild(readingElement);
+                    }
+                    
+                    resultElement.addEventListener('click', function() {
+                        fetchWordDetails(result.id);
+                        
+                        // Highlight the selected result
+                        document.querySelectorAll('#searchResultsList > div').forEach(el => {
+                            el.classList.remove('bg-blue-50', 'border-blue-300');
+                        });
+                        this.classList.add('bg-blue-50', 'border-blue-300');
+                    });
+                    
+                    searchResultsList.appendChild(resultElement);
+                });
+            }
+            
+            // Function to display word details
+    // Function to handle when a search result is clicked
+document.addEventListener('click', function(e) {
+    const resultElement = e.target.closest('#searchResultsList > div');
+    if (resultElement) {
+        // Get word ID for API fetch
+        const wordId = resultElement.dataset.wordId;
+        
+        // Get displayed content from the clicked result
+        const displayedContent = resultElement.innerHTML;
+        
+        // Pass both the ID and the displayed content
+        fetchWordDetails(wordId, displayedContent);
+        
+        // Highlight the selected result
+        document.querySelectorAll('#searchResultsList > div').forEach(el => {
+            el.classList.remove('bg-blue-50', 'border-blue-300');
+        });
+        resultElement.classList.add('bg-blue-50', 'border-blue-300');
+    }
+});
+
+// Function to fetch word details
+async function fetchWordDetails(wordId, displayedContent) {
+    try {
+        // Show loading spinner
+        loadingIndicator.style.display = 'block';
+        wordDetailContainer.classList.add('hidden');
+        
+        const response = await axios.get(`/api/jisho/word?id=${encodeURIComponent(wordId)}`);
+        
+        // Hide loading spinner
+        loadingIndicator.style.display = 'none';
+        
+        // Display the word details
+        if (response.data && response.data.word) {
+            // Pass the displayed content from search results
+            displayWordDetails(response.data.word, displayedContent);
+            wordDetailContainer.classList.remove('hidden');
+            
+            // Scroll to the word details
+            wordDetailContainer.scrollIntoView({ behavior: 'smooth' });
+        } else {
+            console.error('No word details returned');
+        }
+        
+        return response.data;
+    } catch (error) {
+        console.error('Error in fetchWordDetails:', error);
+        loadingIndicator.style.display = 'none';
+        errorMessage.classList.remove('hidden');
+        throw error;
+    }
+}
+
+// Function to display word details
+function displayWordDetails(wordData, displayedContent) {
+    wordDetail.innerHTML = '';
+    
+    // Create main word container
+    const wordContainer = document.createElement('div');
+    wordContainer.className = 'bg-white p-5 rounded-lg shadow-md border border-gray-200';
+    
+    // Word and reading section with better styling
+    const headerSection = document.createElement('div');
+    headerSection.className = 'mb-4 border-b border-gray-200 pb-3';
+    
+    const wordElement = document.createElement('span');
+    wordElement.className = 'text-3xl font-bold text-gray-800';
+    wordElement.textContent = wordData.word;
+    headerSection.appendChild(wordElement);
+    
+    if (wordData.reading) {
+        const readingElement = document.createElement('span');
+        readingElement.className = 'ml-3 text-xl text-gray-600';
+        readingElement.textContent = `[${wordData.reading}]`;
+        headerSection.appendChild(readingElement);
+    }
+    
+    wordContainer.appendChild(headerSection);
+    
+    // Part of speech with better styling
+    if (wordData.partOfSpeech) {
+        const posElement = document.createElement('div');
+        posElement.className = 'text-sm bg-gray-100 inline-block px-3 py-1 rounded-full text-gray-700 mb-4';
+        posElement.textContent = wordData.partOfSpeech;
+        wordContainer.appendChild(posElement);
+    }
+    
+    // Add search result preview section (moved below the kanji and reading)
+    const previewSection = document.createElement('div');
+    previewSection.className = 'mb-4 bg-blue-50 p-3 rounded-md border border-blue-200';
+    
+    const previewTitle = document.createElement('p');
+    previewTitle.className = 'text-sm text-blue-600 font-medium mb-2';
+    previewTitle.textContent = 'Dari hasil pencarian:';
+    previewSection.appendChild(previewTitle);
+    
+    // Parse the displayed content and create a structured list
+    const contentList = document.createElement('ul');
+    contentList.className = 'list-disc pl-5 space-y-2';
+    
+    // Clean HTML tags from the displayedContent
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = displayedContent;
+    const cleanContent = tempDiv.textContent || tempDiv.innerText || '';
+    
+    // Parse the clean content
+    if (cleanContent) {
+        // Separate the content by identifiable parts
+        // Split by Japanese kanji/kana and Latin characters boundary
+        const contentParts = cleanContent.split(/([a-zA-Z-S-m])/);
+        
+        // Extract kanji and furigana if available
+        if (contentParts.length > 0) {
+            // Look for the pattern: Kanji, reading, and then definitions
+            const matches = cleanContent.match(/(.+?)([ぁ-んァ-ン]+)(.+)/);
+            
+            if (matches && matches.length >= 4) {
+                // Kanji
+                const kanjiItem = document.createElement('li');
+                kanjiItem.className = 'text-gray-800';
+                kanjiItem.textContent = matches[1].trim();
+                contentList.appendChild(kanjiItem);
+                
+                // Furigana/Reading
+                const readingItem = document.createElement('li');
+                readingItem.className = 'text-gray-800';
+                readingItem.textContent = matches[2].trim();
+                contentList.appendChild(readingItem);
+                
+                // Meanings - try to split by numbered definitions
+                const meanings = matches[3].trim();
+                const meaningParts = meanings.split(/(\d+\.)/);
+                
+                if (meaningParts.length > 1) {
+                    for (let i = 1; i < meaningParts.length; i += 2) {
+                        if (i + 1 < meaningParts.length) {
+                            const meaningItem = document.createElement('li');
+                            meaningItem.className = 'text-gray-800';
+                            meaningItem.textContent = meaningParts[i] + meaningParts[i + 1].trim();
+                            contentList.appendChild(meaningItem);
+                        }
+                    }
+                } else {
+                    // If no numbered definitions, add as single item
+                    const meaningItem = document.createElement('li');
+                    meaningItem.className = 'text-gray-800';
+                    meaningItem.textContent = meanings;
+                    contentList.appendChild(meaningItem);
+                }
+            } else {
+                // Fallback if the pattern matching fails
+                // Split content by lines or obvious separators
+                const parts = cleanContent.split(/[,;.]/).filter(part => part.trim());
+                
+                parts.forEach(part => {
+                    const item = document.createElement('li');
+                    item.className = 'text-gray-800';
+                    item.textContent = part.trim();
+                    contentList.appendChild(item);
+                });
+            }
+        } else {
+            // Last resort fallback - just display cleaned content
+            const item = document.createElement('li');
+            item.className = 'text-gray-800';
+            item.textContent = cleanContent;
+            contentList.appendChild(item);
+        }
+    }
+    
+    previewSection.appendChild(contentList);
+    wordContainer.appendChild(previewSection);
+    
+    // Meanings section with improved styling
+    if (wordData.meanings && wordData.meanings.length > 0) {
+        const meaningsSection = document.createElement('div');
+        meaningsSection.className = 'mb-5';
+        
+        const meaningsTitle = document.createElement('h4');
+        meaningsTitle.className = 'text-lg font-semibold text-gray-800 mb-3 flex items-center';
+        meaningsTitle.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"></path></svg>Arti:';
+        meaningsSection.appendChild(meaningsTitle);
+        
+        const meaningsList = document.createElement('div');
+        meaningsList.className = 'space-y-3 pl-2';
+        
+        wordData.meanings.forEach((meaning, index) => {
+            const meaningItem = document.createElement('div');
+            meaningItem.className = 'flex items-start p-3 rounded-md bg-gray-50 border-l-4 border-blue-400';
+            
+            // Flag for language
+            const flagSpan = document.createElement('span');
+            flagSpan.className = 'mr-3 flex-shrink-0 mt-1 text-xl';
+            
+            // Set appropriate flag emoji based on language
+            let flagEmoji = '🌐';
+            if (meaning.lang === 'en') flagEmoji = '🇺🇸';
+            else if (meaning.lang === 'id') flagEmoji = '🇮🇩';
+            
+            flagSpan.textContent = flagEmoji;
+            meaningItem.appendChild(flagSpan);
+            
+            // Meaning number and text
+            const meaningContent = document.createElement('div');
+            meaningContent.className = 'flex-grow';
+            
+            const meaningText = document.createElement('span');
+            meaningText.className = 'text-gray-800';
+            meaningContent.textContent = `${index + 1}. ${meaning.text}`;
+            meaningContent.appendChild(meaningText);
+            
+            meaningItem.appendChild(meaningContent);
+            meaningsList.appendChild(meaningItem);
+        });
+        
+        meaningsSection.appendChild(meaningsList);
+        wordContainer.appendChild(meaningsSection);
+    }
+    
+    // Examples section with improved styling
+    if (wordData.examples && wordData.examples.length > 0) {
+        const examplesSection = document.createElement('div');
+        examplesSection.className = 'border-t border-gray-200 pt-4 mt-4';
+        
+        const examplesTitle = document.createElement('h4');
+        examplesTitle.className = 'text-lg font-semibold text-gray-800 mb-3 flex items-center';
+        examplesTitle.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>Contoh Kalimat:';
+        examplesSection.appendChild(examplesTitle);
+        
+        const examplesList = document.createElement('div');
+        examplesList.className = 'space-y-4';
+        
+        wordData.examples.forEach((example, index) => {
+            const exampleItem = document.createElement('div');
+            exampleItem.className = 'bg-gray-50 p-4 rounded-md border-l-4 border-green-400';
+            
+            const japaneseText = document.createElement('div');
+            japaneseText.className = 'font-medium text-gray-800 mb-2';
+            japaneseText.textContent = example.japanese;
+            exampleItem.appendChild(japaneseText);
+            
+            if (example.translation) {
+                const translationText = document.createElement('div');
+                translationText.className = 'text-gray-600 pl-3 border-l-2 border-gray-300';
+                translationText.textContent = example.translation;
+                exampleItem.appendChild(translationText);
+            }
+            
+            examplesList.appendChild(exampleItem);
+        });
+        
+        examplesSection.appendChild(examplesList);
+        wordContainer.appendChild(examplesSection);
+    }
+    
+    wordDetail.appendChild(wordContainer);
+    
+    // Add a back to results button
+    const backButton = document.createElement('button');
+    backButton.className = 'mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors flex items-center';
+    backButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>Close';
+    backButton.addEventListener('click', () => {
+        wordDetailContainer.classList.add('hidden');
+        resultsContainer.classList.remove('hidden');
+    });
+    
+    wordDetail.appendChild(backButton);
+}            // Event listeners
+            searchButton.addEventListener('click', performSearch);
+            searchInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    performSearch();
+                }
+            });
+        });
+  </script>
+</body>
+</html>

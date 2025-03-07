@@ -68,7 +68,10 @@ app.get('/quiz-memo/:deckId', (req, res) => {
 app.get('/memory/:deckId', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'memory.html'));
   });
-app.get('/jisho/jisho', (req, res) => {
+app.get('/user-info/:deckId', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'user-info.html'));
+  });
+app.get('/jisho', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'jisho.html'));
   });
   
