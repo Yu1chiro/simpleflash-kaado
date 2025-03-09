@@ -176,6 +176,269 @@ cardBack.addEventListener('keydown', function(event) {
     }
   });
   
+// move cards to another decks 
+// Tambahkan fungsi berikut ke dalam file JavaScript Anda
+
+// Pastikan SweetAlert sudah diimpor di HTML Anda
+// <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+// Referensi ke tombol Pindahkan
+const moveCardBtn = document.getElementById('move-card');
+
+// Event listener untuk tombol Pindahkan
+moveCardBtn.addEventListener('click', () => {
+  const audio = new Audio('/img/primary.wav');
+  audio.volume = 0.5;
+  audio.play();
+  
+  openBackupCardModal();
+});
+
+// Buat modal untuk memilih deck tujuan dengan animasi
+function openBackupCardModal() {
+  // Periksa apakah pengguna sudah login
+  const user = auth.currentUser;
+  if (!user) return;
+  
+  // Buat elemen modal jika belum ada
+  let backupModal = document.getElementById('backupCardModal');
+  
+  if (!backupModal) {
+    // Buat modal baru jika belum ada
+    backupModal = document.createElement('div');
+    backupModal.id = 'backupCardModal';
+    backupModal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 opacity-0 transition-opacity duration-300 ease-in-out';
+    
+    backupModal.innerHTML = `
+      <div class="bg-white rounded-lg p-6 w-full max-w-md mx-auto transform scale-95 transition-transform duration-300 ease-in-out">
+        <h2 class="text-xl font-bold mb-4" id="backupModalTitle">Pindahkan ke Deck Lain</h2>
+        <p class="mb-4">Pilih deck tujuan untuk menyalin semua kartu dari deck ini:</p>
+        <select id="targetDeckSelect" class="w-full p-2 border border-gray-300 rounded mb-4">
+          <option value="">Pilih Deck Tujuan</option>
+        </select>
+        <div class="flex justify-end space-x-2">
+          <button id="cancelBackupBtn" class="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300">
+            Batal
+          </button>
+          <button id="confirmBackupBtn" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+            Pindahkan
+          </button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(backupModal);
+    
+    // Tambahkan event listener untuk tombol di modal
+    document.getElementById('cancelBackupBtn').addEventListener('click', () => {
+      closeBackupCardModal();
+    });
+    
+    document.getElementById('confirmBackupBtn').addEventListener('click', () => {
+      const targetDeckId = document.getElementById('targetDeckSelect').value;
+      if (targetDeckId) {
+        backupCardsToOtherDeck(user.uid, deckId, targetDeckId);
+      } else {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Pilih Deck',
+          text: 'Silakan pilih deck tujuan terlebih dahulu',
+          confirmButtonColor: '#3085d6'
+        });
+      }
+    });
+    
+    // Tutup modal jika klik di luar modal
+    backupModal.addEventListener('click', (e) => {
+      if (e.target === backupModal) {
+        closeBackupCardModal();
+      }
+    });
+  }
+  
+  // Tampilkan modal dengan animasi
+  backupModal.classList.remove('opacity-0');
+  backupModal.classList.remove('hidden');
+  
+  // Animasi untuk konten modal
+  setTimeout(() => {
+    const modalContent = backupModal.querySelector('div');
+    modalContent.classList.remove('scale-95');
+    modalContent.classList.add('scale-100');
+  }, 10);
+  
+  // Muat deck yang dimiliki pengguna (kecuali deck saat ini)
+  loadUserDecks(user.uid);
+}
+
+// Fungsi untuk menutup modal Pindahkan dengan animasi
+function closeBackupCardModal() {
+  const backupModal = document.getElementById('backupCardModal');
+  if (backupModal) {
+    // Animasi fade out
+    backupModal.classList.add('opacity-0');
+    
+    // Animasi untuk konten modal
+    const modalContent = backupModal.querySelector('div');
+    modalContent.classList.remove('scale-100');
+    modalContent.classList.add('scale-95');
+    
+    // Hapus modal setelah animasi selesai
+    setTimeout(() => {
+      backupModal.classList.add('hidden');
+    }, 300);
+  }
+}
+
+// Fungsi untuk memuat deck yang dimiliki pengguna
+function loadUserDecks(userId) {
+  const targetDeckSelect = document.getElementById('targetDeckSelect');
+  targetDeckSelect.innerHTML = '<option value="">Pilih Deck Tujuan</option>';
+  
+  database.ref(`users/${userId}/decks`).once('value')
+    .then((snapshot) => {
+      if (snapshot.exists()) {
+        snapshot.forEach((deckSnapshot) => {
+          const deck = deckSnapshot.val();
+          const id = deckSnapshot.key;
+          
+          // Jangan tampilkan deck saat ini di daftar
+          if (id !== deckId) {
+            const option = document.createElement('option');
+            option.value = id;
+            option.textContent = deck.title || 'Deck Tanpa Judul';
+            targetDeckSelect.appendChild(option);
+          }
+        });
+      }
+    })
+    .catch((error) => {
+      console.error('Error loading decks:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Terjadi Kesalahan',
+        text: 'Gagal memuat daftar deck',
+        confirmButtonColor: '#3085d6'
+      });
+    });
+}
+
+// Fungsi untuk memPindahkan ke deck lain tanpa menghapus dari deck saat ini
+function backupCardsToOtherDeck(userId, sourceDeckId, targetDeckId) {
+  // Tampilkan konfirmasi dengan SweetAlert
+  Swal.fire({
+    text: 'Apakah anda ingin memindahkan cards ke deck lain?',
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonColor: '#3085d6',
+    cancelButtonColor: '#d33',
+    confirmButtonText: 'Pindahkan',
+    cancelButtonText: 'Batal'
+  }).then((result) => {
+    if (result.isConfirmed) {
+      // Tampilkan loading
+      Swal.fire({
+        title: 'Memproses...',
+        text: 'Sedang memindahkan....',
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        }
+      });
+      
+      // Dapatkan referensi ke kartu di deck sumber
+      const sourceCardsRef = database.ref(`users/${userId}/decks/${sourceDeckId}/cards`);
+      
+      // Dapatkan semua kartu dari deck sumber
+      sourceCardsRef.once('value')
+        .then((snapshot) => {
+          if (!snapshot.exists()) {
+            Swal.fire({
+              icon: 'info',
+              title: 'Tidak Ada Kartu',
+              text: 'Tidak ada kartu untuk di pindahkan silahkan buat cards anda',
+              confirmButtonColor: '#3085d6'
+            });
+            closeBackupCardModal();
+            return;
+          }
+          
+          const cards = snapshot.val();
+          const updates = {};
+          
+          // Persiapkan pembaruan untuk menyalin kartu
+          Object.keys(cards).forEach((cardId) => {
+            const card = cards[cardId];
+            
+            // Generate ID baru untuk kartu di deck tujuan
+            const newCardKey = database.ref().child(`users/${userId}/decks/${targetDeckId}/cards`).push().key;
+            
+            // Buat objek kartu baru dengan ID baru
+            const newCard = {
+              ...card,
+              id: newCardKey,
+              created: firebase.database.ServerValue.TIMESTAMP
+            };
+            
+            // Tambahkan kartu ke deck tujuan dengan ID baru
+            updates[`users/${userId}/decks/${targetDeckId}/cards/${newCardKey}`] = newCard;
+          });
+          
+          // Perbarui jumlah kartu di deck tujuan
+          database.ref(`users/${userId}/decks/${targetDeckId}`).once('value')
+            .then((targetDeckSnapshot) => {
+              if (targetDeckSnapshot.exists()) {
+                const targetDeck = targetDeckSnapshot.val();
+                const targetCardCount = targetDeck.cardCount || 0;
+                const backupCardCount = Object.keys(cards).length;
+                
+                // Perbarui jumlah kartu di deck tujuan
+                updates[`users/${userId}/decks/${targetDeckId}/cardCount`] = targetCardCount + backupCardCount;
+                
+                // Lakukan pembaruan sekaligus
+                return database.ref().update(updates);
+              }
+            })
+            .then(() => {
+                Swal.fire({
+                  icon: 'success',
+                  title: 'Berhasil!',
+                  text: 'Silahkan cek deck anda',
+                  confirmButtonColor: '#3085d6'
+                }).then(() => {
+                  // Arahkan ke route yang kamu tentukan
+                  window.location.href = '/dashboard';
+                });
+                closeBackupCardModal();
+              })              
+            .catch((error) => {
+              console.error('Error backing up cards:', error);
+              Swal.fire({
+                icon: 'error',
+                title: 'Terjadi Kesalahan',
+                text: 'Gagal memPindahkan. Silakan coba lagi.',
+                confirmButtonColor: '#3085d6'
+              });
+            });
+        })
+        .catch((error) => {
+          console.error('Error reading cards:', error);
+          Swal.fire({
+            icon: 'error',
+            title: 'Terjadi Kesalahan',
+            text: 'Gagal membaca kartu. Silakan coba lagi.',
+            confirmButtonColor: '#3085d6'
+          });
+        });
+    }
+  });
+}
+
+
+
+
+
+
   // Load deck information
   function loadDeckInfo(userId, deckId) {
     database.ref(`users/${userId}/decks/${deckId}`).once('value')
@@ -386,3 +649,317 @@ cardBack.addEventListener('keydown', function(event) {
         alert('Failed to delete card. Please try again.');
       });
   }
+
+//   Sharing & gett deck users
+// Fungsi untuk tombol berbagi deck dan meminta deck
+
+// Referensi ke tombol berbagi deck dan meminta deck
+const sharingDeckBtn = document.getElementById('sharing-deck');
+const mintaDeckBtn = document.getElementById('minta-deck');
+
+// Event listener untuk tombol berbagi deck
+sharingDeckBtn.addEventListener('click', () => {
+  const audio = new Audio('/img/primary.wav');
+  audio.volume = 0.5;
+  audio.play();
+  
+  openSharingModal();
+});
+
+// Event listener untuk tombol meminta deck
+mintaDeckBtn.addEventListener('click', () => {
+  const audio = new Audio('/img/primary.wav');
+  audio.volume = 0.5;
+  audio.play();
+  
+  openRequestDeckModal();
+});
+
+// Fungsi untuk membuka modal berbagi deck
+function openSharingModal() {
+  // Periksa apakah pengguna sudah login
+  const user = auth.currentUser;
+  if (!user) return;
+  
+  // Buat modal berbagi deck
+  let sharingModal = document.getElementById('sharingModal');
+  
+  if (!sharingModal) {
+    sharingModal = document.createElement('div');
+    sharingModal.id = 'sharingModal';
+    sharingModal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 opacity-0 transition-opacity duration-300 ease-in-out';
+    
+    sharingModal.innerHTML = `
+      <div class="bg-white rounded-lg p-6 w-full max-w-md mx-auto transform scale-95 transition-transform duration-300 ease-in-out">
+        <h2 class="text-xl font-bold mb-4">Bagikan Deck Anda</h2>
+        <p class="mb-4">Berikan ID deck ini kepada teman Anda agar mereka dapat mengimpornya:</p>
+        <div class="flex mb-4">
+          <input type="text" id="deckShareId" class="flex-grow p-2 border border-gray-300 rounded-l" readonly value="${deckId}">
+          <button id="copyDeckIdBtn" class="px-4 py-2 bg-blue-600 text-white rounded-r hover:bg-blue-700">
+            Salin
+          </button>
+        </div>
+        <div class="flex justify-end">
+          <button id="closeSharingBtn" class="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300">
+            Tutup
+          </button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(sharingModal);
+    
+    // Event listener untuk tombol di modal
+    document.getElementById('copyDeckIdBtn').addEventListener('click', () => {
+      const deckShareId = document.getElementById('deckShareId');
+      deckShareId.select();
+      document.execCommand('copy');
+      
+      Swal.fire({
+        icon: 'success',
+        title: 'ID Deck Disalin',
+        text: 'ID deck berhasil disalin ke clipboard',
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 3000
+      });
+    });
+    
+    document.getElementById('closeSharingBtn').addEventListener('click', () => {
+      closeSharingModal();
+    });
+    
+    // Tutup modal jika klik di luar modal
+    sharingModal.addEventListener('click', (e) => {
+      if (e.target === sharingModal) {
+        closeSharingModal();
+      }
+    });
+  }
+  
+  // Tampilkan modal dengan animasi
+  sharingModal.classList.remove('opacity-0');
+  sharingModal.classList.remove('hidden');
+  
+  // Animasi untuk konten modal
+  setTimeout(() => {
+    const modalContent = sharingModal.querySelector('div');
+    modalContent.classList.remove('scale-95');
+    modalContent.classList.add('scale-100');
+  }, 10);
+}
+
+// Fungsi untuk menutup modal berbagi deck
+function closeSharingModal() {
+  const sharingModal = document.getElementById('sharingModal');
+  if (sharingModal) {
+    // Animasi fade out
+    sharingModal.classList.add('opacity-0');
+    
+    // Animasi untuk konten modal
+    const modalContent = sharingModal.querySelector('div');
+    modalContent.classList.remove('scale-100');
+    modalContent.classList.add('scale-95');
+    
+    // Hapus modal setelah animasi selesai
+    setTimeout(() => {
+      sharingModal.classList.add('hidden');
+    }, 300);
+  }
+}
+
+// Fungsi untuk membuka modal meminta deck
+function openRequestDeckModal() {
+  // Periksa apakah pengguna sudah login
+  const user = auth.currentUser;
+  if (!user) return;
+  
+  // Buat modal meminta deck
+  let requestModal = document.getElementById('requestDeckModal');
+  
+  if (!requestModal) {
+    requestModal = document.createElement('div');
+    requestModal.id = 'requestDeckModal';
+    requestModal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 opacity-0 transition-opacity duration-300 ease-in-out';
+    
+    requestModal.innerHTML = `
+      <div class="bg-white rounded-lg p-6 w-full max-w-md mx-auto transform scale-95 transition-transform duration-300 ease-in-out">
+        <h2 class="text-xl font-bold mb-4">Impor Deck</h2>
+        <p class="mb-4">Masukkan ID deck yang ingin Anda impor:</p>
+        <input type="text" id="requestDeckId" class="w-full p-2 border border-gray-300 rounded mb-4" placeholder="Masukkan ID deck">
+        <div class="flex justify-end space-x-2">
+          <button id="cancelRequestBtn" class="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300">
+            Batal
+          </button>
+          <button id="confirmRequestBtn" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+            Impor Deck
+          </button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(requestModal);
+    
+    // Event listener untuk tombol di modal
+    document.getElementById('cancelRequestBtn').addEventListener('click', () => {
+      closeRequestDeckModal();
+    });
+    
+    document.getElementById('confirmRequestBtn').addEventListener('click', () => {
+      const requestDeckId = document.getElementById('requestDeckId').value.trim();
+      if (requestDeckId) {
+        importDeckById(user.uid, requestDeckId, deckId);
+      } else {
+        Swal.fire({
+          icon: 'warning',
+          title: 'ID Deck Kosong',
+          text: 'Silakan masukkan ID deck yang ingin diimpor',
+          confirmButtonColor: '#3085d6'
+        });
+      }
+    });
+    
+    // Tutup modal jika klik di luar modal
+    requestModal.addEventListener('click', (e) => {
+      if (e.target === requestModal) {
+        closeRequestDeckModal();
+      }
+    });
+  }
+  
+  // Tampilkan modal dengan animasi
+  requestModal.classList.remove('opacity-0');
+  requestModal.classList.remove('hidden');
+  
+  // Animasi untuk konten modal
+  setTimeout(() => {
+    const modalContent = requestModal.querySelector('div');
+    modalContent.classList.remove('scale-95');
+    modalContent.classList.add('scale-100');
+    
+    // Focus pada input field
+    document.getElementById('requestDeckId').focus();
+  }, 10);
+}
+
+// Fungsi untuk menutup modal meminta deck
+function closeRequestDeckModal() {
+  const requestModal = document.getElementById('requestDeckModal');
+  if (requestModal) {
+    // Animasi fade out
+    requestModal.classList.add('opacity-0');
+    
+    // Animasi untuk konten modal
+    const modalContent = requestModal.querySelector('div');
+    modalContent.classList.remove('scale-100');
+    modalContent.classList.add('scale-95');
+    
+    // Hapus modal setelah animasi selesai
+    setTimeout(() => {
+      requestModal.classList.add('hidden');
+    }, 300);
+  }
+}
+
+// Fungsi untuk mengimpor deck berdasarkan ID
+function importDeckById(userId, sourceDeckId, targetDeckId) {
+  // Tampilkan loading
+  Swal.fire({
+    title: 'Memproses...',
+    text: 'Sedang mengimpor deck',
+    allowOutsideClick: false,
+    didOpen: () => {
+      Swal.showLoading();
+    }
+  });
+  
+  // Cari pemilik deck sumber (semua pengguna)
+  database.ref('users').once('value')
+    .then((usersSnapshot) => {
+      let foundDeck = false;
+      let sourceUserId = null;
+      let sourceDeckData = null;
+      
+      // Iterasi melalui semua pengguna
+      usersSnapshot.forEach((userSnapshot) => {
+        const uid = userSnapshot.key;
+        const userData = userSnapshot.val();
+        
+        // Periksa apakah pengguna memiliki deck yang dicari
+        if (userData.decks && userData.decks[sourceDeckId]) {
+          foundDeck = true;
+          sourceUserId = uid;
+          sourceDeckData = userData.decks[sourceDeckId];
+          return true; // Hentikan iterasi forEach
+        }
+      });
+      
+      if (!foundDeck) {
+        throw new Error('Deck tidak ditemukan');
+      }
+      
+      // Dapatkan kartu dari deck sumber
+      return database.ref(`users/${sourceUserId}/decks/${sourceDeckId}/cards`).once('value');
+    })
+    .then((cardsSnapshot) => {
+      if (!cardsSnapshot.exists()) {
+        throw new Error('Tidak ada kartu dalam deck tersebut');
+      }
+      
+      const cards = cardsSnapshot.val();
+      const updates = {};
+      
+      // Persiapkan pembaruan untuk mengimpor kartu
+      Object.keys(cards).forEach((cardId) => {
+        const card = cards[cardId];
+        
+        // Generate ID baru untuk kartu di deck tujuan
+        const newCardKey = database.ref().child(`users/${userId}/decks/${targetDeckId}/cards`).push().key;
+        
+        // Buat objek kartu baru dengan ID baru
+        const newCard = {
+          ...card,
+          id: newCardKey,
+          created: firebase.database.ServerValue.TIMESTAMP
+        };
+        
+        // Tambahkan kartu ke deck tujuan dengan ID baru
+        updates[`users/${userId}/decks/${targetDeckId}/cards/${newCardKey}`] = newCard;
+      });
+      
+      // Perbarui jumlah kartu di deck tujuan
+      return database.ref(`users/${userId}/decks/${targetDeckId}`).once('value')
+        .then((targetDeckSnapshot) => {
+          if (targetDeckSnapshot.exists()) {
+            const targetDeck = targetDeckSnapshot.val();
+            const targetCardCount = targetDeck.cardCount || 0;
+            const importCardCount = Object.keys(cards).length;
+            
+            // Perbarui jumlah kartu di deck tujuan
+            updates[`users/${userId}/decks/${targetDeckId}/cardCount`] = targetCardCount + importCardCount;
+            
+            // Lakukan pembaruan sekaligus
+            return database.ref().update(updates);
+          }
+        });
+    })
+    .then(() => {
+      Swal.fire({
+        icon: 'success',
+        title: 'Berhasil!',
+        text: 'Deck berhasil diimpor ke deck Anda',
+        confirmButtonColor: '#3085d6'
+      });
+      closeRequestDeckModal();
+    })
+    .catch((error) => {
+      console.error('Error importing deck:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Terjadi Kesalahan',
+        text: error.message || 'Gagal mengimpor deck. Silakan coba lagi.',
+        confirmButtonColor: '#3085d6'
+      });
+    });
+}
